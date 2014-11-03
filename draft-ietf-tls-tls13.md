@@ -2903,8 +2903,9 @@ The client_hs_master_secret is used to protect traffic which is sent
 by the client to the server and the server_hs_master_secret is used
 for traffic sent by the server to the client.
 
-Once the handshake has completed, the client and server then compute
-the secrets which will be used for the remainder of the session:
+Once the last non-Finished message has been sent, the client and
+server then compute the secrets which will be used for the remainder
+of the session:
 
        client_master_secret = PRF(pre_master_secret,
                                   "client_master_secret",
@@ -2920,6 +2921,16 @@ the secrets which will be used for the remainder of the session:
                                   "resumption_master_secret",
                                   session_hash)
                                   [0..47];
+
+If the server does not request client authentication, these secrets can be
+computed at the time that the server sends its Finished,
+thus allowing the server to send traffic on its first flight
+(see [TODO] for security considerations on this practice.)
+If the server requests client authentication, these secrets can be
+computed after the client's Certificate and CertificateVerify
+have been sent, or, if the client refuses client authentication,
+after the client's empty Certificate message has been
+sent.
 
 The client_master_secret is used to protect traffic which is sent by
 the client to the server and the server_master_secret is used for
@@ -2940,12 +2951,10 @@ where "handshake_messages" refers to all handshake messages sent or
 received, starting at client hello up to the present time, with the
 exception of the Finished message, including the type and length
 fields of the handshake messages. This is the concatenation of all the
-exchanged Handshake structures, as defined in Section 7.4 of
-{{RFC5246}}.
+exchanged Handshake structures.
 
 There is no "session_hash" for resumed handshakes, as they do not lead
 to the creation of a new session.
-
 
 ###  Diffie-Hellman
 
@@ -3890,7 +3899,7 @@ expired or been revoked.
 The general goal of the key exchange process is to create a pre_master_secret
 known to the communicating parties and not to attackers. The pre_master_secret
 will be used to generate the master_secret (see
-{{computing-the-master-secret}}). The master_secret is required to generate the
+{{cryptographic-computations}}). The master_secret is required to generate the
 Finished messages and record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
 that they know the correct pre_master_secret.
