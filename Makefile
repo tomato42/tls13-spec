@@ -36,6 +36,9 @@ $(draft)-$(COMMIT).md:
 	-rm -rf $@
 	git show $(COMMIT):$(draft).md > $@
 
+$(draft)-$(COMMIT2).md:
+	-rm -rf $@
+	git show $(COMMIT2):$(draft).md > $@
 
 diff: $(draft).txt $(draft)-orig.txt
 	$(rfcdiff) $(draft)-orig.txt $(draft).txt
@@ -43,7 +46,13 @@ diff: $(draft).txt $(draft)-orig.txt
 
 diff-commit: $(draft).txt $(draft)-$(COMMIT).txt
 	$(rfcdiff) $(draft)-$(COMMIT).txt $(draft).txt
-	-rm -rf $(draft)-orig.*
+	-rm -rf $(draft)-$(COMMIT2).*
+
+diff-commit2: $(draft)-$(COMMIT2).txt $(draft)-$(COMMIT).txt
+	$(rfcdiff) $(draft)-$(COMMIT).txt $(draft)-$(COMMIT2).txt
+	-rm -rf $(draft)-$(COMMIT).*
+	-rm -rf $(draft)-$(COMMIT2).*
+
 
 $(next).md: $(draft).md
 	sed -e"s/$(basename $<)-latest/$(basename $@)/" $< > $@
