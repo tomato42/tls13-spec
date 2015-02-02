@@ -37,6 +37,7 @@ normative:
   RFC3447:
   RFC3280:
   RFC5288:
+  RFC5869:
   AES:
        title: Specification for the Advanced Encryption Standard (AES)
        date: 2001-11-26
@@ -118,6 +119,7 @@ informative:
   I-D.ietf-tls-negotiated-ff-dhe:
   I-D.ietf-tls-session-hash:
   I-D.ietf-tls-sslv3-diediedie:
+
 
   CBCATT:
        title: "Security of CBC Ciphersuites in SSL/TLS: Problems and Countermeasures"
@@ -304,6 +306,10 @@ document are to be interpreted as described in RFC 2119 {{RFC2119}}.
 
 ##  Major Differences from TLS 1.2
 
+draft-06
+
+- Start integration of semi-ephemeral DH proposal (OPTLS)
+
 draft-05
 
 - Prohibit SSL negotiation for backwards compatibility.
@@ -325,7 +331,6 @@ draft-04
 - Update format of signatures with context.
 
 - Remove point format negotiation.
-
 
 draft-03
 
@@ -732,51 +737,47 @@ For example:
 
        Example1 ex1 = {1, 4};  /* assigns f1 = 1, f2 = 4 */
 
+#  HKDF
 
-# The Pseudorandom Function {#HMAC}
+TLS uses HKDF {{RFC5869}} for key expansion. HKDF provides two
+functions. HKDF-Extract is used to generate a pseudorandom key (PRK)
+from an input keying material (IKM) value:
 
-A construction is required to do expansion of secrets into blocks
-of data for the purposes of key generation or validation. This pseudorandom
-function (PRF) takes as input a secret, a seed, and an identifying label and
-produces an output of arbitrary length.
+       HKDF-Extract(salt, IKM)
 
-In this section, we define one PRF, based on HMAC {{RFC2104}}. This PRF with the SHA-256
-hash function is used for all cipher suites defined in this document and in TLS
-documents published prior to this document when TLS 1.2 is negotiated. New
-cipher suites MUST explicitly specify a PRF and, in general, SHOULD use the TLS
-PRF with SHA-256 or a stronger standard hash function.
+salt
+: a salt value
 
-First, we define a data expansion function, P_hash(secret, data), that uses a
-single hash function to expand a secret and seed into an arbitrary quantity of
-output:
+IKM
+: input keying material (e.g., a pre-shared key or a (EC)DH shared
+  secret.
+{:br}
+~~~~~~~
 
-       P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
-                              HMAC_hash(secret, A(2) + seed) +
-                              HMAC_hash(secret, A(3) + seed) + ...
 
-where + indicates concatenation.
+~~~~~~~
+The HKDF-Expand function is used to generate keys from a pseudo-random key:
 
-A() is defined as:
+        HKDF-Expand(PRK, info, length)
 
-       A(0) = seed
-       A(i) = HMAC_hash(secret, A(i-1))
+PRK
+: the pseudo-random key used as a source of entropy.
 
-P_hash can be iterated as many times as necessary to produce the required
-quantity of data. For example, if P_SHA256 is being used to create 80 bytes of
-data, it will have to be iterated three times (through A(3)), creating 96 bytes
-of output data; the last 16 bytes of the final iteration will then be
-discarded, leaving 80 bytes of output data.
+info
+: application context information.
 
-TLS's PRF is created by applying P_hash to the secret as:
+length
+: the desired output length in octets.
+{:br}
 
-       PRF(secret, label, seed) = P_<hash>(secret, label + seed)
+In TLS, HKDF is often invoked with an info parameter constructed
+by concatenating a fixed "label" and a variable "seed", as in
 
-The label is an ASCII string.  It should be included in the exact
-form it is given without a length byte or trailing null character.
-For example, the label "slithy toves" would be processed by hashing
-the following bytes:
+       "label" + seed
 
-       73 6C 69 74 68 79 20 74 6F 76 65 73
+The label is represented as an ASCII string, including the terminating
+NUL value and the seed is directly concatenated after the NUL.
+
 
 #  The TLS Record Protocol
 
@@ -811,7 +812,7 @@ wish to take steps (padding, cover traffic) to minimize information leakage.
 
 A TLS connection state is the operating environment of the TLS Record
 Protocol.  It specifies a record protection algorithm and its
-parameters as well as the record protection keys and IVs for the
+parameters as well as the record protection keys for the
 connection in both the read and the write directions. The security
 parameters are set by the TLS Handshake Protocol, which also determines
 when new cryptographic keys are installed and used for record
@@ -829,11 +830,10 @@ connection end
 : Whether this entity is considered the "client" or the "server" in
   this connection.
 
-PRF algorithm
+KDF algorithm
 
-: An algorithm used to generate keys from the master secret (see
-  {{HMAC}} and {{key-calculation}}).
-
+: The hash algorithm used with HKDF {{RFC5869}} to generate keys {{key-calculation}}).
+  kdf_length denotes the output length of this hash.
 
 record protection algorithm
 
@@ -843,19 +843,15 @@ record protection algorithm
   do not provide any confidentiality and
   {{record-payload-protection}} defines a special NULL_NULL AEAD
   algorithm for use in the initial handshake). This specification
-  includes the key size of this algorithm and the lengths of explicit
-  and implicit initialization vectors (or nonces).
-
-handshake master secret
-
-: A 48-byte secret shared between the two peers in the connection and
-used to generate keys for protecting the handshake.
-
+  includes the key size of this algorithm and of the nonce for
+  the AEAD algorithm.
 
 master secret
 
 : A 48-byte secret shared between the two peers in the connection
-and used to generate keys for protecting application data.
+and used to generate keys for protecting data. The TLS handshake
+generates multiple master secrets in different handshake phases.
+
 
 client random
 
@@ -872,21 +868,20 @@ These parameters are defined in the presentation language as:
 %%% Security Parameters
        enum { server, client } ConnectionEnd;
 
-       enum { tls_prf_sha256 } PRFAlgorithm;
+       enum { sha256, sha384 } KDFAlgorithm;
 
        enum { aes_gcm } RecordProtAlgorithm;
 
-       /* The algorithms specified in PRFAlgorithm and
+       /* The algorithms specified in KDFAlgorithm and
           RecordProtAlgorithm may be added to. */
 
        struct {
            ConnectionEnd          entity;
-           PRFAlgorithm           prf_algorithm;
+           KDFAlgorithm           kdf_algorithm;
+           uint8                  kdf_length;
            RecordProtAlgorithm    record_prot_algorithm;
            uint8                  enc_key_length;
            uint8                  block_length;
-           uint8                  fixed_iv_length;
-           uint8                  record_iv_length;
            opaque                 hs_master_secret[48];
            opaque                 master_secret[48];
            opaque                 client_random[32];
@@ -898,8 +893,6 @@ items (some of which are not required by all ciphers, and are thus empty):
 
        client write key
        server write key
-       client write IV
-       server write IV
 
 The client write parameters are used by the server when receiving and
 processing records and vice versa. The algorithm used for generating these
@@ -949,7 +942,8 @@ message MAY be fragmented across several records).
 
        enum {
            reserved(20), alert(21), handshake(22),
-           application_data(23), (255)
+           application_data(23), early_handshake(25),
+           (255)
        } ContentType;
 
        struct {
@@ -1006,7 +1000,6 @@ of {{RFC5116}}. The key is either the client_write_key or the server_write_key.
            ContentType type;
            ProtocolVersion version;
            uint16 length;
-           opaque nonce_explicit[SecurityParameters.record_iv_length];
            aead-ciphered struct {
               opaque content[TLSPlaintext.length];
            } fragment;
@@ -1026,14 +1019,14 @@ fragment
 : The AEAD encrypted form of TLSPlaintext.fragment.
 {:br }
 
-Each AEAD cipher suite MUST specify how the nonce supplied to the AEAD
-operation is constructed, and what is the length of the
-TLSCiphertext.nonce_explicit part. In many cases, it is appropriate to use
-the partially implicit nonce technique described in Section 3.2.1 of
-{{RFC5116}}; with record_iv_length being the length of the explicit part. In
-this case, the implicit part SHOULD be derived from key_block as
-client_write_iv and server_write_iv (as described in {{key-calculation}}), and
-the explicit part is included in GenericAEAEDCipher.nonce_explicit.
+The nonce for the AEAD construction is formed by taking the 64-bit
+sequence number and padding it on the left with zeroes to N_MIN
+if N_MIN is greater than 64 bits (see {{RFC5116}} Section 4).
+An AEAD algorithm where N_MAX is less than 64 bits MUST not be
+used with TLS.
+
+Note: This is a different construction from that in TLS 1.2, which
+specified a partially explicit nonce.
 
 The plaintext is the TLSPlaintext.fragment.
 
@@ -1089,32 +1082,23 @@ parameters provided by the handshake protocol.
 The master secret is expanded into a sequence of secure bytes, which
 is then split to a client write encryption key and a server write
 encryption key. Each of these is generated from the byte sequence in
-that order. Unused values are empty. Some ciphers may additionally
-require a client write IV and a server write IV.
+that order. Unused values are empty.
 
 When keys are generated, the current master secret (MS) is used
 as an entropy source. For handshake records, this means the
 hs_master_secret. For application data records, this means the
 regular master_secret.
 
-To generate the key material, compute
+To generate the keys, compute:
 
-       key_block = PRF(MS,
-                       "key expansion",
-                       SecurityParameters.server_random +
-                       SecurityParameters.client_random);
+      client_write_key = HKDF-Expand(MS, "client write key" + session_hash,
+                                     SecurityParameters.enc_key_length)
 
-where MS is the relevant master secret. The PRF is computed enough
-times to generate the necessary amount of data for the key_block,
-which is then partitioned as follows:
+      server_write_key = HKDF-Expand(MS, "server write key" + session_hash,
+                                     SecurityParameters.enc_key_length)
 
-       client_write_key[SecurityParameters.enc_key_length]
-       server_write_key[SecurityParameters.enc_key_length]
-       client_write_IV[SecurityParameters.fixed_iv_length]
-       server_write_IV[SecurityParameters.fixed_iv_length]
-
-Currently, the client_write_IV and server_write_IV are only generated for
-implicit nonce techniques as described in Section 3.2.1 of {{RFC5116}}.
+Where MS is the relevant master secret and session_hash is the value
+defined in {{the-session-hash}}.
 
 
 #  The TLS Handshaking Protocols
@@ -1136,11 +1120,11 @@ peer certificate
 
 cipher spec
 : Specifies the authentication and key establishment algorithms,
-  the pseudorandom function (PRF) used to generate keying
+  the key derivation function (KDF) used to generate keying
   material, and the record protection algorithm (See
   {{the-security-parameters}} for formal definition.)
 
-resumption premaster secret
+resumption master secret
 : 48-byte secret shared between the client and server.
 
 is resumable
@@ -1409,19 +1393,19 @@ The TLS Handshake Protocol involves the following steps:
    algorithms, exchange random values, and check for session resumption.
 
 -  Exchange the necessary cryptographic parameters to allow the
-  client and server to agree on a premaster secret.
+  client and server to agree on shared secret values.
 
 -  Exchange certificates and cryptographic information to allow the
   client and server to authenticate themselves.
 
--  Generate a master secret from the premaster secret and exchanged
-  random values.
+-  Generate a series of master secrets from the shared secrets and exchanged
+   random values.
 
 -  Provide security parameters to the record layer.
 
 -  Allow the client and server to verify that their peer has
-  calculated the same security parameters and that the handshake
-  occurred without tampering by an attacker.
+   calculated the same security parameters and that the handshake
+   occurred without tampering by an attacker.
 
 Note that higher layers should not be overly reliant on whether TLS always
 negotiates the strongest possible connection between two peers. There are a
@@ -1454,46 +1438,48 @@ extensions the client offered.
 
 The server can then generate its own keying material share and send a
 ServerKeyShare message which contains its share of the parameters for
-the key agreement. The server can now compute the shared secret (the
-premaster secret). At this point, the server starts encrypting all
-remaining handshake traffic with the negotiated cipher suite using a key
-derived from the premaster secret (via the "handshake master secret").
-The remainder of the server's
-handshake messages will be encrypted using that key.
+the ephemeral key agreement. The server can now compute a shared
+secret (the ephemeral secret). At this point, the server starts
+encrypting all remaining handshake traffic with the negotiated cipher
+suite using a key derived from the ephemeral secret. The remainder of
+the server's handshake messages will be encrypted using that key.
 
 Following these messages, the server will send an EncryptedExtensions
-message which contains a response to any client's extensions which are
+message which contains a response to any client extensions which are
 not necessary to establish the Cipher Suite. The server will then send
 its certificate in a Certificate message if it is to be authenticated.
 The server may optionally request a certificate from the client by
-sending a CertificateRequest message at this point.
-Finally, if the server is authenticated, it will send a CertificateVerify
-message which provides a signature over the entire handshake up to
-this point. This serves both to authenticate the server and to establish
-the integrity of the negotiation. Finally, the server sends a Finished
-message which includes an integrity check over the handshake keyed
-by the shared secret and demonstrates that the server and client have
-agreed upon the same keys.
+sending a CertificateRequest message at this point. If the server is
+authenticated by a certificate, it will then send a ServerParameters
+message to provide its semi-static key pair.  This semi-static key
+pair is combined with the client's ephemeral key to form a static
+secret which is transitively bound to the server's certificate.
+Finally, the server sends a Finished message which includes an
+integrity check over the handshake keyed by the static secret; the
+Finised message demonstrates that the server and client have agreed upon the same
+keys and that the server's ephemeral key is bound to its authenticated
+semi-static key pair.
+
 [[TODO: If the server is not requesting client authentication,
 it MAY start sending application data following the Finished, though
 the server has no way of knowing who will be receiving the data. Add this.]]
 
 Once the client receives the ServerKeyShare, it can also compute the
-premaster secret and decrypt the server's remaining handshake messages.
-The client generates its own sending keys based on the premaster secret
+ephmemeral secret and decrypt the server's remaining handshake messages.
+The client generates its own sending keys based on the ephemeral secret
 and will encrypt the remainder of its handshake messages using those keys
 and the newly established cipher suite.  If the server has sent a
 CertificateRequest message, the client MUST send the Certificate
 message, though it may contain zero certificates.  If the client has
 sent a certificate, a digitally-signed CertificateVerify message is
 sent to explicitly verify possession of the private key in the
-certificate.  Finally, the client sends the Finished message.
+certificate.  Finally, the client sends its own Finished message.
 
-At this point, the handshake is complete, and the
-client and server may exchange application layer data, which is
-protected using a new set of keys derived from both the premaster
-secret and the handshake transcript (see {{I-D.ietf-tls-session-hash}}
-for the security rationale for this.)
+At this point, the handshake is complete, and the client and server
+may exchange application layer data, which is protected using a new
+set of keys derived from both the ephemeral and static secrets and the
+handshake transcript (see {{I-D.ietf-tls-session-hash}} for the
+security rationale for this.)
 
 Application data MUST NOT be sent prior to the Finished message.
 [[TODO: can we make this clearer and more clearly match the text above
@@ -1507,7 +1493,7 @@ about server-side False Start.]]
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                              {CertificateVerify*}
+                                               {ServerParameters*}
                                  <--------              {Finished}
        {Certificate*}
        {CertificateVerify*}
@@ -1544,7 +1530,7 @@ ClientKeyShare, as shown in Figure 2:
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                              {CertificateVerify*}
+                                               {ServerParameters*}
                                  <--------              {Finished}
        {Certificate*}
        {CertificateVerify*}
@@ -1565,7 +1551,8 @@ the same negotiated parameters.]]
 If no common cryptographic parameters can be negotiated, the server
 will send a fatal alert.
 
-
+{::comment}
+[TODO(ekr@rtfm.com): RESUMPTION]
 When the client and server decide to resume a previous session or duplicate an
 existing session (instead of negotiating new security parameters), the message
 flow is as follows:
@@ -1577,8 +1564,8 @@ connection under the specified session state, it will send a
 ServerHello with the same Session ID value. At this point, both client
 and server MUST proceed directly to sending Finished messages, which
 are protected using handshake keys as described above, computed using
-resumption premaster secret created in the first handshake as the
-premaster secret. Once the
+resumption master secret created in the first handshake as the
+static secret (no ephemeral secret is used). Once the
 re-establishment is complete, the client and server MAY begin to
 exchange application layer data, which is protected using the
 application secrets (See flow chart below.) If a Session ID match is
@@ -1596,8 +1583,11 @@ and server perform a full handshake.
 
            Figure 3.  Message flow for an abbreviated handshake
 
+{:/comment}
+
 The contents and significance of each message will be presented in detail in
 the following sections.
+
 
 ##  Handshake Protocol
 
@@ -1612,8 +1602,8 @@ processed and transmitted as specified by the current active session state.
            reserved(0), client_hello(1), server_hello(2),
            client_key_share(5), hello_retry_request(6),
            server_key_share(7), certificate(11), reserved(12),
-           certificate_request(13), certificate_verify(15),
-           reserved(16), finished(20), (255)
+           certificate_request(13), server_configuration(14),
+           certificate_verify(15), reserved(16), finished(20), (255)
        } HandshakeType;
 
        struct {
@@ -1627,6 +1617,7 @@ processed and transmitted as specified by the current active session state.
                case server_key_share:    ServerKeyShare;
                case certificate:         Certificate;
                case certificate_request: CertificateRequest;
+               case server_configuration:ServerParameters;
                case certificate_verify:  CertificateVerify;
                case finished:            Finished;
            } body;
@@ -1704,7 +1695,7 @@ The cipher suite list, passed from the client to the server in the ClientHello
 message, contains the combinations of cryptographic algorithms supported by the
 client in order of the client's preference (favorite choice first). Each cipher
 suite defines a key exchange algorithm, a record protection algorithm (including
-secret key length) and a PRF. The server will select a cipher
+secret key length) and a KDF. The server will select a cipher
 suite or, if no acceptable choices are presented, return a handshake failure
 alert and close the connection. If the list contains cipher suites the server
 does not recognize, support, or wish to use, the server MUST ignore those
@@ -2261,6 +2252,10 @@ must consider the supported groups in both cases.
 
 ##### Early Data Extension
 
+[TODO(ekr@rtfm.com): I think we should just push this into a
+ClientHello extension directly and then decree that any
+0-RTT data needs to be in separate messages.]
+    
 TLS versions before 1.3 have a strict message ordering and do not
 permit additional messages to follow the ClientHello. The EarlyData
 extension allows TLS messages which would otherwise be sent as
@@ -2315,8 +2310,8 @@ with the selected cipher suite and group parameters.
 Meaning of this message:
 
 > This message conveys cryptographic information to allow the client to
-compute the premaster secret: a Diffie-Hellman public key with which the
-client can complete a key exchange (with the result being the premaster secret)
+compute a shared secret secret: a Diffie-Hellman public key with which the
+client can complete a key exchange (with the result being the shared secret)
 or a public key for some other algorithm.
 
 Structure of this message:
@@ -2378,11 +2373,12 @@ extensions
 
 When this message will be sent:
 
-> The server MUST send a Certificate message whenever the agreed-upon key
-exchange method uses certificates for authentication (this includes all key
-exchange methods defined in this document except DH_anon). This message will
-always immediately follow either the EncryptedExtensions message if one is
-sent or the ServerKeyShare message.
+> The server MUST send a Certificate message whenever the agreed-upon
+key exchange method uses certificates for authentication (this
+includes all key exchange methods defined in this document except
+DH_anon), and unless the KnownKeyExtension is used. This message will
+always immediately follow either the EncryptedExtensions message if
+one is sent or the ServerKeyShare message.
 
 
 Meaning of this message:
@@ -2566,68 +2562,101 @@ Note: It is a fatal handshake_failure alert for an anonymous server to request
 client authentication.
 
 
-###  Server Certificate Verify
+###  Server Parameters
 
+Meaning of this message:
+> This message is used to convey the server's non-ephemeral DH/ECDHE parameters,
+thus binding them to the long-term key in the server's certificate.
 
 When this message will be sent:
 
-> This message is used to provide explicit proof that the server
-possesses the private key corresponding to its certificate.
-certificate and also provides integrity for the handshake up
-to this point. This message is only sent when the server is
-authenticated via a certificate. When sent, it MUST be the
-last server handshake message prior to the Finished.
+> This message MUST immediately follow the Certificate message whenever
+the server sends that message.
 
-Structure of this message:
+Structure of this Message:
 
-%%% Authentication Messages
+%%% Hello Messages
        struct {
-            digitally-signed struct {
-                opaque handshake_messages_hash[hash_length];
-            }
-       } CertificateVerify;
+         uint64 not_before;
+         uint64 not_after;
+         opaque key_identifier<0..2^8-1>;
+         NamedGroup group;
+         opaque server_key<1..2^16-1>;
+       } UnsignedParameters;
 
-> Here handshake_messages_hash is a digest of all handshake messages
-sent or received, starting at ClientHello and up to, but not
-including, this message, including the type and length fields of the
-handshake messages. This is a digest of the concatenation of all the
-Handshake structures (as defined in {{handshake-protocol}}) exchanged
-thus far. For the PRF defined in Section 5, the digest MUST be the
-Hash used as the basis for the PRF.  Any cipher suite which defines a
-different PRF MUST also define the Hash to use in this
-computation. Note that this is the same running hash that is used in
-the Finished message {{server-finished}}.
+not_before
+: The earliest time that the parameters are valid, expressed in seconds
+since the UNIX epoch. If this value is 0, then the parameters are only
+valid for this connection.
 
-> The context string for the signature is "TLS 1.3, server CertificateVerify". A
-hash of the handshake messages is signed rather than the messages themselves
-because the digitally-signed format requires padding and context bytes at the
-beginning of the input. Thus, by signing a digest of the messages, an
-implementation need only maintain one running hash per hash type for
-CertificateVerify, Finished and other messages.
+not_after
+: The last time that the parameters are valid, expressed in seconds
+since the UNIX epoch. If this value is 0, then the parameters are only
+valid for this connection.
 
->If the client has offered the "signature_algorithms" extension, the signature
-algorithm and hash algorithm MUST be a pair listed in that extension. Note that
-there is a possibility for inconsistencies here. For instance, the client might
-offer DHE_DSS key exchange but omit any DSA pairs from its
-"signature_algorithms" extension. In order to negotiate correctly, the server
-MUST check any candidate cipher suites against the "signature_algorithms"
-extension before selecting them. This is somewhat inelegant but is a compromise
-designed to minimize changes to the original cipher suite design.
+key_identifier
+: The key identifier to be used with the known configuration extension
+[TODO] in known key mode.
 
-> In addition, the hash and signature algorithms MUST be compatible with the key
-in the server's end-entity certificate. RSA keys MAY be used with any permitted
-hash algorithm, subject to restrictions in the certificate, if any.
+group
+: The same meaning as in ServerKeyShare. This MUST be the same group
+as used for that message.
 
-> Because DSA signatures do not contain any secure indication of hash
-algorithm, there is a risk of hash substitution if multiple hashes may be used
-with any key. Currently, DSA {{DSS}} may only be used with SHA-1. Future
-revisions of DSS {{DSS-3}} are expected to allow the use of other digest
-algorithms with DSA, as well as guidance as to which digest algorithms should
-be used with each key size. In addition, future revisions of {{RFC3280}} may
-specify mechanisms for certificates to indicate which digest algorithms are to
-be used with DSA.
-[[TODO: Update this to deal with DSS-3 and DSS-4.
-https://github.com/tlswg/tls13-spec/issues/59]]
+server_key
+: The server's DH key share.
+{:br }
+
+       enum { online(0), (255)} ParametersType;
+       
+       struct {
+           UnsignedParameters parameters;
+           ParametersType params_type;
+           digitally-signed struct {
+             UnsignedParameters parameters;
+             opaque session_hash[Hash.length];
+           };
+           opaque zero_rt_id<0..2^16-1>;
+       } ServerParameters;
+
+params_type
+: The type of parameters. Currently this MUST be "online".
+
+zero_rt_id
+: The identifier for the 0-RT context (if any) being established by this
+  handshake.
+{:br }
+
+The ServerParameters structure MUST be signed by the terminal
+(end-entity) certificate in the server's Certificate message. 
+The signature value is computed as the concatenation of the
+serialized UnsignedParameters type and the session hash.
+The context string for this signature is "TLS 1.3, server parameters". 
+
+The client MUST verify the signature prior to accepting it and
+terminate the handshake with a fatal decrypt_error alert if the
+signature fails. If the client's idea of the current time is not
+between the not_before and not_after values (inclusive) and those
+values are non-zero, then the client MUST terminate the handshake with
+a fatal certificate_expired alert.
+
+If the not_before and not_after values are nonzero, then the client
+MAY cache the ServerParameters value for future use during the lifespan indicated by
+those values.
+
+It is explicitly permitted for the (EC)DH key in this message to be
+the same as the key used in the server's ServerKeyShare message.
+This server-side behavior allows the server to only do one (EC)DH variable
+base operation, which is a significant performance improvement. In
+this case, the server MUST use a fresh DH ephemeral value for each
+connection (otherwise PFS is lost) and MUST set the not_before and
+not_after values to 0 so that the key will not be cached.
+that this implies that if the server wishes to enable 0-RT mode,
+it cannot use this optimization.
+
+If the client wishes to optimize for this case, it MAY compare the two
+key share values and cache the (EC)DH computation if they are
+equal. Alternately, clients may simply perform the (EC)DH computations
+independently. In either case, the derived secrets will be the same.
 
 
 ###  Server Finished
@@ -2636,7 +2665,6 @@ When this message will be sent:
 
 > The Server's Finished message is the final message sent by the server
 and indicates that the key exchange and authentication processes were successful.
-
 
 Meaning of this message:
 
@@ -2652,13 +2680,15 @@ Structure of this message:
 %%% Handshake Finalization Messages
 
        struct {
-           opaque verify_data[verify_data_length];
+           opaque verify_data[SecurityParameters.kdf_length];
        } Finished;
 
 
-verify_data
-:      PRF(hs_master_secret, finished_label, Hash(handshake_messages))
-             [0..verify_data_length-1];
+The verify_data value is computed as follows:
+                       
+       verify_data = HKDF-Expand(finished_secret,
+                                 finished_label + session_hash,
+                                 SecurityParameters.kdf_length)
 
 finished_label
 :       For Finished messages sent by the client, the string
@@ -2666,31 +2696,21 @@ finished_label
         the string "server finished".
 {:br }
 
-> Hash denotes a Hash of the handshake messages. For the PRF defined in
-{{HMAC}}, the Hash MUST be the Hash used as the basis for the PRF. Any cipher
-suite which defines a different PRF MUST also define the Hash to use in the
+The finished_secret is computed as:
+
+         finished_secret = HKDF-Expand(AMS,
+                                       SecurityParameters.server_random +
+                                       SecurityParameters.client_random,
+                                       SecurityParameters.kdf_length);
+
+> Hash denotes a Hash of the handshake messages. When HKDF is used as the
+KDF, then the Hash MUST be the Hash used as the basis for the HKDF. Any cipher
+suite which defines a different KDF MUST also define the Hash to use in the
 Finished computation.
-
-> In previous versions of TLS, the verify_data was always 12 octets long. In
-the current version of TLS, it depends on the cipher suite. Any cipher suite
-which does not explicitly specify verify_data_length has a verify_data_length
-equal to 12. This includes all existing cipher suites. Note that this
-representation has the same encoding as with previous versions. Future cipher
-suites MAY specify other lengths but such length MUST be at least 12 bytes.
-
-handshake_messages
-
-: All of the data from all messages in this handshake (not
-  including any HelloRequest messages) up to, but not including,
-  this message.  This is only data visible at the handshake layer
-  and does not include record layer headers.  This is the
-  concatenation of all the Handshake structures as defined in
-  {{handshake-protocol}}, exchanged thus far.
-{:br }
 
 The value handshake_messages includes all handshake messages starting at
 ClientHello up to, but not including, this Finished message. This may be
-different from handshake_messages in {{server-certificate-verify}} or
+different from handshake_messages in {{server-parameters}} or
 {{client-certificate-verify}}. Also, the handshake_messages
 for the Finished message sent by the client will be different from that for the
 Finished message sent by the server, because the one that is sent second will
@@ -2723,8 +2743,7 @@ Meaning of this message:
 
 > This message conveys the client's certificate chain to the server; the server
 will use it when verifying the CertificateVerify message (when the client
-authentication is based on signing) or calculating the premaster secret (for
-non-ephemeral Diffie- Hellman). The certificate MUST be appropriate for the
+authentication is based on signing). The certificate MUST be appropriate for the
 negotiated cipher suite's key exchange algorithm, and any negotiated extensions.
 
 In particular:
@@ -2783,9 +2802,32 @@ When this message will be sent:
 certificate. This message is only sent following a client certificate that has
 signing capability (i.e., all certificates except those containing fixed
 Diffie-Hellman parameters). When sent, it MUST immediately follow the client's
-Certificate message. The contents of the message are computed as described
-in {{server-certificate-verify}}, except that the context string is
-"TLS 1.3, client CertificateVerify".
+Certificate message. 
+
+Structure of this message:
+
+%%% Authentication Messages
+       struct {
+            digitally-signed struct {
+                opaque handshake_messages_hash[hash_length];
+            }
+       } CertificateVerify;
+
+> Here handshake_messages_hash is a digest of all handshake messages
+sent or received, starting at ClientHello and up to, but not
+including, this message, including the type and length fields of the
+handshake messages. This is a digest of the concatenation of all the
+Handshake structures (as defined in {{handshake-protocol}}) exchanged
+thus far. The digest MUST be the Hash used as the basis for the KDF.
+Note that this is the same running hash that is used in
+the Finished message {{server-finished}}.
+
+> The context string for the signature is "TLS 1.3, client CertificateVerify". A
+hash of the handshake messages is signed rather than the messages themselves
+because the digitally-signed format requires padding and context bytes at the
+beginning of the input. Thus, by signing a digest of the messages, an
+implementation need only maintain one running hash per hash type for
+CertificateVerify, Finished and other messages.
 
 > The hash and signature algorithms used in the signature MUST be one of those
 present in the supported_signature_algorithms field of the CertificateRequest
@@ -2813,83 +2855,150 @@ cipher_suite selected by the server and revealed in the ServerHello
 message. The random values are exchanged in the hello messages. All
 that remains is to calculate the master secret.
 
-##  Computing the Master Secret
+##  Computing the Master Secrets
 
-The pre_master_secret is used to generate a series of master secret values,
-as shown in the following diagram and described below.
+The TLS handshake establishes secret keying material which is then used
+to protect traffic. Depending on the handshake parameters, this keying
+material may be derived from either one or two shared secrets, as described
+in the table below:
+
+~~~
+    Key Exchange            Static Secret (SS)    Ephemeral Secret (ES)
+    ------------            ------------------    ---------------------
+    (EC)DHE                   Client ephemeral         Client ephemeral
+                              w/ server static      w/ server ephemeral
+    
+    PSK                         Pre-Shared Key                        0
+    
+    PSK + (EC)DHE               Pre-Shared Key         Client ephemeral
+                                                    w/ server ephemeral
+    
+    Resumption                  Resumption PMS                        0
+~~~
+
+These shared secret values are used to generate master secret values as shown
+below. For the handshake variants with only one secret, a fixed string of 0s
+(indicated by 0 in the table above) is used instead, allowing for a
+uniform derivation process for all handshake modes.
+
+The diagram below shows the derivation process modeled on HKDF {{RFC5869}}.
+In this diagram, HKDF-Extract is shown taking the salt from the top and
+the IKM from the side, and HKDF-Expand generally includes the session
+hash as part of the "info" parameter.
+
+                                        0
+                                        |                         
+                                        |                         
+                                      HKDF <- Static Secret<------+
+                                     Extract
+                                        |                         |
+        Early Application               v                         |
+          Traffic Keys    <-HKDFH--   Auth.                       |
+                                     Master                       |
+                                     Secret                       |
+                                        |                         |
+                0                       |                         | Via
+                |                       |                         | Session
+               HKDF <--  Ephemeral --> HKDF                       |
+             Extract      Secret     Extract                      |
+                |                       |                         |
+                v                       |                         |
+             Handshake                  |                         |
+              Master                    |                         |
+              Secret                    |                         |
+                |                       |                         |
+           HKDF-Expand                  |                         |
+                |                       |                         |
+                v                       v                         |
+             Handshake                Master                      |
+           Traffic Keys               Secret                      |
+                                        |                         |
+                                        |                         |
+            Application    <--HKDF------+-----HKDF--->        Resumption        
+           Traffic Keys      Expand     |    Expand             Master
+                                        |                       Secret  
+                                        |
+              Exporter     <--HKDF------+
+               Master        Expand
+               Secret
+
+The key derivation process below is described in the order that values are
+computed for the 1-RTT handshake. In the 0-RTT handshake the AMS is computed
+first in order to derive the Early Application Traffic Keys (see Section [TODO]).
+However, in either case the computations are the same.
+[[OPEN ISSUE: One unattractive feature here is that we don't get to
+encrypt the handshake under PSK even if it's available.]]
+
+Once the ClientKeyShare and ServerKeyShare have been exchanged, ES is
+computed and used to compute the handshake master secret (HMS).
+
+       HMS = HKDF-Extract(0, ES)
+
+This master secret value is used to compute the record protection keys
+used for the handshake, as described in {{key-calculation}}.
+
+Once the ServerParameters message has been exchanged, SS is computed
+based on the client's ephemeral key share in the ServerKeyShare
+and the server_key value of the ServerParameters. SS is used as
+input to the rest of the key schedule, starting with the
+authentication master secret (AMS):
+
+       AMS = HKDF-Extract(0, SS)
+
+Once the AMS has been computed, SS SHOULD be deleted from memory.
 
 
-                                 Premaster Secret <---------+
-                                        |                   |
-                                       PRF                  |
-                                        |                   |
-                                        v                   |
-      Handshake   <-PRF-           Handshake                |
-     Traffic Keys                 Master Secret             | 
-                                        |                   | Via
-                                        |                   | Session
-                             +----------+----------+        | Cache
-                             |                     |        |
-                            PRF                   PRF       |
-                             |                     |        |
-                             v                     v        |
-     Application  <-PRF-  Master               Resumption   |
-    Traffic Keys          Secret               Premaster  --+
-                                                 Secret
+AMS is used to compute for three purposes:
 
-First, as soon as the ClientKeyShare and ServerKeyShare messages
-have been exchanged, the client and server each use the
-unauthenticated key shares to generate a master secret which is used
-for the protection of the remaining handshake records. Specifically,
-they generate:
+  1. To compute the Master Secret.
 
-       hs_master_secret = PRF(pre_master_secret, "handshake master secret",
-                              session_hash)
-                              [0..47];
+  1. As the master secret to compute record protection keys for 0-RTT
+     application data.
+  
+  3. To compute the key for the Finished message.
 
-During resumption, the premaster secret is initialized with the
-"resumption premaster secret", rather than using the values from the
-ClientKeyShare/ServerKeyShare exchange.
+Once both AMS and ES are available, the client can then compute the
+Master Secret (MS):
 
-This master secret value is used to generate the record protection
-keys used for the handshake, as described in {{key-calculation}}.
+       MS = HKDF-Extract(AMS, ES)
 
-Once the hs_master_secret has been computed, the premaster secret SHOULD
-be deleted from memory.
+If ES is not available, then a SecurityParameters.kdf_length
+string of 0s is used.
 
-Once the last non-Finished message has been sent, the client and
-server then compute the master secret which will be used for the
-remainder of the session.  It is also used with TLS Exporters {{RFC5705}}.
+This master secret value is used for three purposes:
 
-       master_secret = PRF(hs_master_secret, "extended master secret",
-                           session_hash)
-                           [0..47];
+  1. To compute the final application traffic protection keys,
+     as described in {{key-calculation}}.
 
-If the server does not request client authentication, the master
-secret can be computed at the time that the server sends its Finished,
-thus allowing the server to send traffic on its first flight (see
-[TODO] for security considerations on this practice.)  If the server
-requests client authentication, this secret can be computed after the
-client's Certificate and CertificateVerify have been sent, or, if the
-client refuses client authentication, after the client's empty
-Certificate message has been sent.
+  2. To compute the resumption master secret (RMS) as described below.
 
-For full handshakes, each side also derives a new secret which will
-be used as the premaster_secret for future resumptions of the
-newly established session. This is computed as:
+  3. To compute the exporter master secret (EMS) as described below.
 
-       resumption_premaster_secret = PRF(hs_master_secret,
-                                         "resumption premaster secret",
-                                         session_hash)
-                                         [0..47];
+If the server does not request client authentication, the rest of
+these computations performed at the time that the server sends its
+Finished, thus allowing the server to send traffic on its first flight
+(see [TODO] for security considerations on this practice.)  If the
+server requests client authentication, these computations can be
+computed after the client's Certificate and CertificateVerify have
+been sent, or, if the client refuses client authentication, after the
+client's empty Certificate message has been sent.
 
-The session_hash value is a running hash of the handshake as
-defined in {{the-session-hash}}. Thus, the hs_master_secret
-is generated using a different session_hash from the other
-two secrets.
+The exporter master secret (EMS) is computed as:
+
+       EMS = HKDF-Expand(MS, "exporter master secret" + session_hash,
+                         SecurityParameters.kdf_length)
+
+In full handshakes a resumption master secret (RMS) is computed as:
+
+       RMS = HKDF-Expand(MS, "resumption master secret" + session_hash,
+                         SecurityParameters.kdf_length)
+
+The session_hash value is a running hash of the handshake at the current
+point, as defined in {{the-session-hash}}
 
 All master secrets are always exactly 48 bytes in length. The length
-of the premaster secret will vary depending on key exchange method.
+of SS and ES will vary depending on key exchange method.
+
 
 
 ###  The Session Hash
@@ -2919,16 +3028,16 @@ first flight, as it covers the client's Certificate and CertificateVerify.
 ###  Diffie-Hellman
 
 A conventional Diffie-Hellman computation is performed. The negotiated key (Z)
-is used as the pre_master_secret, and is converted into the master_secret, as
+is used as the shared_secret, and is converted into the master secrets, as
 specified above. Leading bytes of Z that contain all zero bits are stripped
-before it is used as the pre_master_secret.
+before it is used as the input to the key computations.
 
 ### Elliptic Curve Diffie-Hellman
 
 All ECDH calculations (including parameter and key generation as well
 as the shared secret calculation) are performed according to [6]
 using the ECKAS-DH1 scheme with the identity map as key derivation
-function (KDF), so that the premaster secret is the x-coordinate of
+function (KDF), so that the shared secret is the x-coordinate of
 the ECDH shared secret elliptic curve point represented as an octet
 string.  Note that this octet string (Z in IEEE 1363 terminology) as
 output by FE2OSP, the Field Element to Octet String Conversion
@@ -2937,8 +3046,8 @@ found in this octet string MUST NOT be truncated.
 
 (Note that this use of the identity KDF is a technicality.  The
 complete picture is that ECDH is employed with a non-trivial KDF
-because TLS does not directly use the premaster secret for anything
-other than for computing the master secret.)
+because TLS does not directly use this secret for anything
+other than for computing other secrets.)
 
 #  Mandatory Cipher Suites
 
@@ -3105,12 +3214,12 @@ higher computational and communicational cost than anonymous key exchange, it
 may be in the interest of interoperability not to disable non-anonymous key
 exchange when the application layer is allowing anonymous key exchange.
 
-The PRFs SHALL be as follows:
+The KDFs SHALL be as follows:
 
-   o  For cipher suites ending with _SHA256, the PRF is the TLS PRF
+   o  For cipher suites ending with _SHA256, the KDF is HKDF
       with SHA-256 as the hash function.
 
-   o  For cipher suites ending with _SHA384, the PRF is the TLS PRF
+   o  For cipher suites ending with _SHA384, the KDF is HKDF
       with SHA-384 as the hash function.
 
 New cipher suite values are been assigned by IANA as described in
@@ -3214,12 +3323,6 @@ handshake
 : An initial negotiation between client and server that
   establishes the parameters of their transactions.
 
-Initialization Vector (IV)
-: Some AEAD ciphers require an initialization vector to allow
-  the cipher to safely protect multiple chunks of data with the
-  same keying material. The size of the IV depends on the cipher
-  suite.
-
 Message Authentication Code (MAC)
 : A Message Authentication Code is a one-way hash computed from a
   message and some secret data.  It is difficult to forge without
@@ -3227,7 +3330,7 @@ Message Authentication Code (MAC)
   has been altered.
 
 master secret
-: Secure secret data used for generating keys and IVs.
+: Secure secret data used for generating keys.
 
 MD5
 : MD5 {{RFC1321}} is a hashing function that converts an arbitrarily long
@@ -3293,7 +3396,7 @@ Transport Layer Security (TLS)
 # Cipher Suite Definitions
 
     Cipher Suite                          Key        Record
-                                          Exchange   Protection   PRF
+                                          Exchange   Protection   KDF
 
     TLS_NULL_WITH_NULL_NULL               NULL       NULL_NULL    N/A
     TLS_DHE_RSA_WITH_AES_128_GCM_SHA256   DHE_RSA    AES_128_GCM  SHA256
@@ -3303,24 +3406,10 @@ Transport Layer Security (TLS)
     TLS_DH_anon_WITH_AES_128_GCM_SHA256   DH_anon    AES_128_GCM  SHA256
     TLS_DH_anon_WITH_AES_256_GCM_SHA384   DH_anon    AES_128_GCM  SHA384
 
-                    Key      Implicit IV   Explicit IV
-    Cipher         Material  Size          Size
-    ------------   --------  ----------    -----------
-    NULL               0          0             0
-    AES_128_GCM       16          4             8
-    AES_256_GCM       32          4             8
 
 Key Material
 : The number of bytes from the key_block that are used for
   generating the write keys.
-
-Implicit IV Size
-: The amount of data to be generated for the per-connection part of the
-  initialization vector. This is equal to SecurityParameters.fixed_iv_length).
-
-Explicit IV Size
-: The amount of data needed to be generated for the per-record part of the
-  initialization vector. This is equal to SecurityParameters.record_iv_length).
 {:br }
 
 # Implementation Notes
@@ -3528,13 +3617,29 @@ clients must supply an acceptable certificate to the server. Each party is
 responsible for verifying that the other's certificate is valid and has not
 expired or been revoked.
 
-The general goal of the key exchange process is to create a pre_master_secret
-known to the communicating parties and not to attackers. The pre_master_secret
-will be used to generate the master_secret (see
-{{computing-the-master-secret}}). The master_secret is required to generate the
-Finished messages and record protection keys (see {{server-finished}} and
+The general goal of the key exchange process is to create a master_secret
+known to the communicating parties and not to attackers (see
+{{computing-the-master-secrets}}). The master_secret is required to generate the
+record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
-that they know the correct pre_master_secret.
+that they know the correct master_secret and bind the ephemeral keys
+to the authentication secret.
+
+####  HKDF
+
+The separation of HKDF into its two components, HKDF-Extract and
+HKDF-Expand as used in this specification has two main purposes: (i)
+Highlight the uses of HKDF-Expand as a pseudo-random function (PRF) in
+the cases where a strong (uniform) key is available and without need
+for further extraction, and (ii) to accommodate the derivation of
+multiple keys out of a single extracted key, e.g. when deriving
+multiple keys using MS. We note that care needs to be applied when
+using this separation. The output of HKDF-Extract SHOULD only be used
+for generating further keys via HKDF-Expand and never as a terminal
+key (i.e., never as a leaf in the key derivation tree). In particular,
+context information in the form of label+seed is only attached to the
+HKDF-Expand inputs not to that of HKDF-Extract.
+
 
 ####  Anonymous Key Exchange
 
