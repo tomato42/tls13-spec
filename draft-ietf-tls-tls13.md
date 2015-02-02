@@ -38,6 +38,7 @@ normative:
   RFC5280:
   RFC5288:
   RFC5289:
+  RFC5869:
   AES:
        title: Specification for the Advanced Encryption Standard (AES)
        date: 2001-11-26
@@ -110,6 +111,7 @@ informative:
   I-D.ietf-tls-negotiated-ff-dhe:
   I-D.ietf-tls-session-hash:
   I-D.ietf-tls-sslv3-diediedie:
+
 
   CBCATT:
        title: "Security of CBC Ciphersuites in SSL/TLS: Problems and Countermeasures"
@@ -303,7 +305,9 @@ server: The endpoint which did not initiate the TLS connection.
 
 ##  Major Differences from TLS 1.2
 
+
 draft-06
+- Start integration of semi-ephemeral DH proposal.
 
 - Prohibit RC4 negotiation for backwards compatibility.
 
@@ -321,6 +325,7 @@ draft-05
 - Fix which MS is used for exporters.
 
 
+
 draft-04
 
 - Modify key computations to include session hash.
@@ -334,7 +339,6 @@ draft-04
 - Remove renegotiation.
 
 - Remove point format negotiation.
-
 
 draft-03
 
@@ -866,16 +870,12 @@ record protection algorithm
   includes the key size of this algorithm and of the nonce for
   the AEAD algorithm.
 
-handshake master secret
-
-: A 48-byte secret shared between the two peers in the connection and
-used to generate keys for protecting the handshake.
-
-
 master secret
 
 : A 48-byte secret shared between the two peers in the connection
-and used to generate keys for protecting application data.
+and used to generate keys for protecting data. The TLS handshake
+generates multiple master secrets in different handshake phases.
+
 
 client random
 
@@ -966,7 +966,8 @@ message MAY be fragmented across several records).
 
        enum {
            reserved(20), alert(21), handshake(22),
-           application_data(23), (255)
+           application_data(23), early_handshake(25),
+           (255)
        } ContentType;
 
        struct {
@@ -1127,11 +1128,11 @@ To generate the key material, compute
 
        key_block = PRF(MS,
                        "key expansion",
-                       SecurityParameters.server_random +
-                       SecurityParameters.client_random);
+                       session_hash);
 
-where MS is the relevant master secret. The PRF is computed enough
-times to generate the necessary amount of data for the key_block,
+where MS is the relevant master secret and
+session_hash is the value defined in {{the-session-hash}}.
+The PRF is computed enough times to generate the necessary amount of data for the key_block,
 which is then partitioned as follows:
 
        client_write_key[SecurityParameters.enc_key_length]
@@ -1162,7 +1163,7 @@ cipher spec
   material, and the record protection algorithm (See
   {{the-security-parameters}} for formal definition.)
 
-resumption premaster secret
+resumption master secret
 : 48-byte secret shared between the client and server.
 
 is resumable
@@ -1423,6 +1424,7 @@ New Alert values are assigned by IANA as described in {{iana-considerations}}.
 
 ##  Handshake Protocol Overview
 
+[[TODO: Rewrite to handle the new message flows for known configuration.]]
 The cryptographic parameters of the session state are produced by the TLS
 Handshake Protocol, which operates on top of the TLS record layer. When a TLS
 client and server first start communicating, they agree on a protocol version,
@@ -1435,12 +1437,12 @@ The TLS Handshake Protocol involves the following steps:
    algorithms, exchange random values, and check for session resumption.
 
 -  Exchange the necessary cryptographic parameters to allow the
-  client and server to agree on a premaster secret.
+  client and server to agree on shared secret values.
 
 -  Exchange certificates and cryptographic information to allow the
   client and server to authenticate themselves.
 
--  Generate a master secret from the premaster secret and exchanged
+-  Generate a series of master secrets from the shared secrets and exchanged
   random values.
 
 -  Provide security parameters to the record layer.
@@ -1480,12 +1482,12 @@ extensions the client offered.
 
 The server can then generate its own keying material share and send a
 ServerKeyShare message which contains its share of the parameters for
-the key agreement. The server can now compute the shared secret (the
-premaster secret). At this point, the server starts encrypting all
-remaining handshake traffic with the negotiated cipher suite using a key
-derived from the premaster secret (via the "handshake master secret").
-The remainder of the server's
-handshake messages will be encrypted using that key.
+the key agreement. The server can now compute a shared secret (the
+ephemeral secret). At this point, the server starts encrypting all
+remaining handshake traffic with the negotiated cipher suite using a
+key derived from the master secret (via the "handshake master
+secret"). The remainder of the server's handshake messages will be
+encrypted using that key.
 
 Following these messages, the server will send an EncryptedExtensions
 message which contains a response to any client's extensions which are
@@ -1533,6 +1535,7 @@ about server-side False Start.]]
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
+                                             {ServerConfiguration}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1570,6 +1573,7 @@ ClientKeyShare, as shown in Figure 2:
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
+                                             {ServerConfiguration}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1591,7 +1595,37 @@ the same negotiated parameters.]]
 If no common cryptographic parameters can be negotiated, the server
 will send a fatal alert.
 
+In cases where the client and server have communicated before
+and the server has indicated willingness, the
+client can consolidate its entire first flight of messages to the server as well as send application data
+in its first flight, as shown below:
 
+       Client                                               Server
+
+       ClientHello
+       ClientKeyShare
+       {Certificate*}
+       {CertificateVerify*}
+       {Finished}              
+       [Application Data]        -------->
+                                                       ServerHello
+                                                    ServerKeyShare
+                                 <--------              {Finished}
+       [Application Data]        <------->      [Application Data]
+
+
+                Figure 3.  Message flow for a zero round trip handshake
+                
+In order to allow the server to clearly distinguish between 0-RTT handshake
+data and 1-RTT handshake data in case of a 0-RTT failure, all handshake
+messages in this flow after the ClientKeyShare shall use the "early_handshake"
+record type. 0-RTT application data from the two phases can be distinguished
+by whether it appears before or after the handshake data.
+[[OPEN ISSUE: Should we use a separate DTLS epoch or just rely on decryption
+failures to reject the data?]]
+
+{::comment}
+[TODO(ekr@rtfm.com): RESUMPTION]
 When the client and server decide to resume a previous session or duplicate an
 existing session (instead of negotiating new security parameters), the message
 flow is as follows:
@@ -1603,8 +1637,8 @@ connection under the specified session state, it will send a
 ServerHello with the same Session ID value. At this point, both client
 and server MUST proceed directly to sending Finished messages, which
 are protected using handshake keys as described above, computed using
-resumption premaster secret created in the first handshake as the
-premaster secret. Once the
+resumption master secret created in the first handshake as the
+static secret (no ephemeral secret is used). Once the
 re-establishment is complete, the client and server MAY begin to
 exchange application layer data, which is protected using the
 application secrets (See flow chart below.) If a Session ID match is
@@ -1621,6 +1655,8 @@ and server perform a full handshake.
        [Application Data]            <------->   [Application Data]
 
            Figure 3.  Message flow for an abbreviated handshake
+
+{:/comment}
 
 The contents and significance of each message will be presented in detail in
 the following sections.
@@ -1639,8 +1675,8 @@ processed and transmitted as specified by the current active session state.
            reserved(0), client_hello(1), server_hello(2),
            client_key_share(5), hello_retry_request(6),
            server_key_share(7), certificate(11), reserved(12),
-           certificate_request(13), certificate_verify(15),
-           reserved(16), finished(20), (255)
+           certificate_request(13), server_configuration(14),
+           certificate_verify(15), reserved(16), finished(20), (255)
        } HandshakeType;
 
        struct {
@@ -1654,6 +1690,7 @@ processed and transmitted as specified by the current active session state.
                case server_key_share:    ServerKeyShare;
                case certificate:         Certificate;
                case certificate_request: CertificateRequest;
+               case server_configuration:ServerConfiguration;
                case certificate_verify:  CertificateVerify;
                case finished:            Finished;
            } body;
@@ -2277,8 +2314,194 @@ must consider the supported groups in both cases.
 
 [[TODO: IANA Considerations.]]
 
+
+##### Known Configuration Extension
+
+The known configuration extension allows the client to indicate that
+it already knows either the server's cryptographic key (either a DH
+share or a pre-shared key) or the server's entire state. In the case
+of a DH share, this extension allows the omission of the server
+certificate and signature, with three potential benefits:
+
+- Shortening the handshake because the certificate may be large.
+
+- Reducing cryptographic burden on the server if the server has
+  an RSA certificate.
+
+- Allowing the client and server to do a 0-RTT exchange [TODO].
+
+
+In the case of a pre-shared key (PSK), this extension is used to
+communicate the PSK which the client desires to use.
+
+%%% Hello Messages
+          enum { known_key(1), known_configuration(2), (255) }
+            ConfigurationType;
+
+          struct {
+            ConfigurationType type;
+            opaque identifier<2 .. 2^16-1>;
+          } KnownConfigurationExtension
+
+key_identifier
+: An opaque label for the configuration in question.
+
+{:br }
+
+This extension comes in two flavors:
+
+- An indication of a specific known key.
+
+- An indication of a complete configuration (cipher suites,
+  extensions, etc.)
+
+A client which wishes to reuse a known configuration MAY supply a single
+KnownConfigurationExtension value which indicates the known configuration it desires
+to use. It is a fatal error to supply more than one extension.
+A client which wishes to use a pre-shared key MUST supply the
+identity of the key in this extension.
+
+A server which wishes to use the key echoes the extension
+in its ServerHello. A server MUST NOT negotiate PSK cipher
+modes unless it also agrees upon a known key.
+
+When the client and server mutually agree upon a known configuration via this
+mechanism, the server MUST reply with a shortened handshake. Specifically:
+
+- If a known_key is specified, the server MUST omit the Certificate and CertificateVerify
+  messages from its response: they are unnecessary in the case of a
+  known DH share and are never used with a pre-shared key.
+
+- If a known_configuration is specified, the server MUST also respond with
+  a shortened ServerHello consisting solely of the negotiated
+  cipher suite and the echoed known configuration extension.
+  The client and the server mutually adopt the configuration
+  associated with the configuration ID.
+
+[[TODO: This is redundant with session resumption, but the idea is to
+deprecate session resumption in favor of this more general notion.
+The issue is that in order for 0-RTT to work, we need to have a single
+defined configuration for the client's data, and that's easiest
+if the client just specifies a defined configuration.]]
+
+
+##### Zero-Round Trip Context Extension
+
+[TODO(ekr@rtfm.com): Ugh, this is a terrible name.]
+
+In cases where TLS clients have previously interacted with the 
+server, it is possible to do a zero round-trip handshake
+where the client sends the entire handshake and potentially
+application data to the server on its first flight. The
+ZeroRoundTripContext extension is used to negotiate this
+feature.
+
+%%% Hello Messages
+          struct {
+            uint32 timestamp;
+            opaque identifier<2 .. 2^16-1>;
+          } ZeroRoundTripContextExtension
+
+
+A client can indicate its desire to do a 0-RT handshake
+by including a ZeroRoundTripContext extension in its ClientHello.
+An empty extension indicates that the client is willing
+to do 0-RT handshakes but has not yet established enough
+context with the server to do so. In this case, the
+client's first flight is as shown in Figure 1.
+
+Once the client and the server have established a 0-RT context (see
+Section XXX), the client can indicate that its first flight is
+intended to be 0-RT by including the extension in its ClientHello with
+the identifier of the context. It is a fatal error to include
+a non-empty extension without also including KnownConfiguration
+extension of type "known_configuration" indicating the cryptographic
+parameters used to protect the data.In this case, the client's first flight
+will be as shown in Figure 3.
+
+A server which receives a ZeroRoundTripContext extension can
+behave in one of three ways:
+
+- Ignore the extension and return no response. This indicates
+  that the server is unwilling to do a 0-RT handshake. The
+  server MUST ignore any additional 0-RT data sent in the first
+  flight and the client MUST complete an ordinary handshake
+  as shown in Figure 1.
+
+- Return an empty extension, indicating willingness to do 0-RT
+  handshakes but that this handshake will not be 0-RT. Any
+  0-RT data sent in the first flight is ignored as in the previous
+  case. The server MUST then establish a 0-RT context as
+  described in {{server-configuration}}.
+
+- Echo the clients non-empty context identifier, indicating a
+  successful agreement on a 0-RT handshake. In this case, the
+  server will proceed to process the client's first flight
+  0-RT data.
+
+It is a fatal error for the server to respond with a non-empty
+context identifier other than the one in the client's ClientHello.
+
+[[OPEN ISSUE: This just specifies the signaling for 0-RTT but
+not the the 0-RTT cryptographic transforms, including:
+
+- What is in the session hash (including potentially some
+  speculative data from the server.)
+- What is signed in the client's CertificateVerify
+- Whether we really want the Finished to not include the
+  server's data at all.
+
+What's here now needs a lot of cleanup before it is clear
+and correct.]]
+
+
+###### 0-RTT Anti-Replay Handling
+
+In versions of TLS prior to TLS 1.3 and in TLS 1.3 1-RTT mode the
+server ensures that the clients messages are not being replayed by
+providing a fresh Random value in the ServerHello, which is then
+incorporated into the key computation. However, in 0-RTT mode,
+the client can send data prior to the server's first message and
+thus this mechanism is not available to protect that data. Instead,
+the server MUST keep state to ensure that the ClientHello is
+never replayed. If a replay or potential replay is detected, the
+server MUST reject the 0-RTT handshake.
+
+The server can use any mechanism of its choice to keep state, however
+the following mechanism, derived from [I-D.draft-agl-tls-snapstart]
+is RECOMMENDED:
+
+The server's state is stored under the identifier provided in
+the ZeroRoundTripContextExtension. This state includes:
+
+- The time window for which records are being kept.
+- A list of all the client random values which have
+  been received during this time window.
+
+When an attempted 0-RTT handshake is received, the server performs
+the following steps:
+
+- Look up the state from the identifier. If no records are
+  found, the 0-RTT attempt is rejected.
+
+- If the client's timestamp is outside the stored window for
+  this identifier, the 0-RTT attempt is rejected.
+
+- If the client's ClientRandom value is found in the server's
+  database, the 0-RTT attempt is rejected.
+  [[OPEN ISSUE: Should we send an alert if this is TLS, but
+  not DTLS.]]
+
+If all of these checks succeed, the server adds the ClientRandom
+value to the server's database and allows the 0-RTT handshake
+to continue.
+
 ##### Early Data Extension
 
+[TODO(ekr@rtfm.com): I think we should just push this into a
+ClientHello extension directly and then decree that any
+0-RTT data needs to be in separate messages.]
+    
 TLS versions before 1.3 have a strict message ordering and do not
 permit additional messages to follow the ClientHello. The EarlyData
 extension allows TLS messages which would otherwise be sent as
@@ -2332,8 +2555,8 @@ with the selected cipher suite and group parameters.
 Meaning of this message:
 
 > This message conveys cryptographic information to allow the client to
-compute the premaster secret: a Diffie-Hellman public key with which the
-client can complete a key exchange (with the result being the premaster secret)
+compute a shared secret secret: a Diffie-Hellman public key with which the
+client can complete a key exchange (with the result being the shared secret)
 or a public key for some other algorithm.
 
 Structure of this message:
@@ -2394,11 +2617,12 @@ extensions
 
 When this message will be sent:
 
-> The server MUST send a Certificate message whenever the agreed-upon key
-exchange method uses certificates for authentication (this includes all key
-exchange methods defined in this document except DH_anon). This message will
-always immediately follow either the EncryptedExtensions message if one is
-sent or the ServerKeyShare message.
+> The server MUST send a Certificate message whenever the agreed-upon
+key exchange method uses certificates for authentication (this
+includes all key exchange methods defined in this document except
+DH_anon), and unless the KnownKeyExtension is used. This message will
+always immediately follow either the EncryptedExtensions message if
+one is sent or the ServerKeyShare message.
 
 
 Meaning of this message:
@@ -2580,6 +2804,60 @@ Note: Values listed as RESERVED MUST NOT be used. They were used in SSL 3.0.
 Note: It is a fatal "handshake_failure" alert for an anonymous server to request
 client authentication.
 
+
+###  Server Configuration
+
+[TODO: Clean up the messages this comes before and after]
+
+When this message will be sent:
+
+> This message is used to provide a server configuration which
+the client can use in future to skip handshake negotiation and
+(optionally) to allow 0-RTT handshakes. The ServerConfiguration
+message is sent as the last message before the CertificateVerify.
+
+[TODO(ekr@rtfm.com): Should we send this in Update instead?
+Wouldn't that be nice?]
+
+Structure of this Message:
+
+%%% Hello Messages
+          struct {
+              opaque configuration_id<0..2^16-1>;
+              uint32 expiration_date;
+              NamedGroup group;
+              opaque server_key<1..2^16-1>;
+              opaque zero_rt_id<0..2^16-1>;
+          } ServerConfiguration;
+
+
+configuration_id
+: The configuration identifier to be used with the known configuration
+extension {{known-configuration-extension}}.
+
+group
+: The group for the long-term DH key that is being established
+for this configuration.
+
+expiration_date
+: The last time when this configuration is expected to be valid
+(in seconds since the Unix epoch).
+
+server_key
+: The long-term DH key that is being established for this configuration.
+
+zero_rt_id
+: The identifier for the 0-RT context (if any) being established by this
+handshake.
+
+{:br }
+
+The semantics of this message are to establish a shared state between
+the client and server for a configuration of type known_configuration
+with the key specified in key and with the handshake parameters negotiated
+by this handshake. If a non-empty zero_rt_id is established,
+then the client can use a 0-RT handshake as shown in Figure 3.
+
 ###  Server Certificate Verify
 
 When this message will be sent:
@@ -2668,15 +2946,36 @@ Structure of this message:
        } Finished;
 
 
+The verify_data value is computed as follows:
+
+                       
 verify_data
-: PRF(hs_master_secret, finished_label, Hash(handshake_messages))
-  [0..verify_data_length-1];
+:      PRF(finished_secret, finished_label, Hash(handshake_messages))
+           [0..verify_data_length-1];
 
 finished_label
 : For Finished messages sent by the client, the string
   "client finished".  For Finished messages sent by the server,
   the string "server finished".
 {:br }
+
+For modes where ES != 0 the finished_secret is computed as:
+
+         finished_secret = PRF(AMS, "finished_secret",
+                               SecurityParameters.server_random +
+                               SecurityParameters.client_random)
+
+Otherwise:
+
+         finished_secret = PRF(MS, "finished_secret",
+                               SecurityParameters.server_random +
+                               SecurityParameters.client_random)
+
+
+
+[[OPEN ISSUE: In Hugo's diagram, the secrets used for Finished have
+the session_hash merged in, but since we compute the session hash
+here, that seems unnecessary. Double check.]]
 
 > Hash denotes a Hash of the handshake messages. For the PRF defined in
 {{HMAC}}, the Hash MUST be the Hash used as the basis for the PRF. Any cipher
@@ -2734,8 +3033,7 @@ Meaning of this message:
 
 > This message conveys the client's certificate chain to the server; the server
 will use it when verifying the CertificateVerify message (when the client
-authentication is based on signing) or calculating the premaster secret (for
-non-ephemeral Diffie-Hellman). The certificate MUST be appropriate for the
+authentication is based on signing). The certificate MUST be appropriate for the
 negotiated cipher suite's key exchange algorithm, and any negotiated extensions.
 
 In particular:
@@ -2823,84 +3121,137 @@ cipher_suite selected by the server and revealed in the ServerHello
 message. The random values are exchanged in the hello messages. All
 that remains is to calculate the master secret.
 
+##  Computing the Master Secrets
 
-##  Computing the Master Secret
+The TLS handshake establishes secret keying material which is then used
+to protect traffic. Depending on the handshake parameters, this keying
+material may be derived from either one or two shared secrets, as described
+in the table below:
 
-The pre_master_secret is used to generate a series of master secret values,
-as shown in the following diagram and described below.
+~~~
+    Key Exchange            Static Secret (SS)    Ephemeral Secret (ES)
+    ------------            ------------------    ---------------------
+    (EC)DHE                                 0          Client ephemeral
+                                                    w/ server ephemeral
+    
+    (EC)DHE                   Client ephemeral         Client ephemeral
+    (known server key)            w/ Known Key      w/ server ephemeral
+    
+    PSK                         Pre-Shared Key                        0
+    
+    PSK + (EC)DHE               Pre-Shared Key         Client ephemeral
+                                                    w/ server ephemeral
+    
+    Resumption                  Resumption PMS                        0
+~~~
 
+These shared secret values are used to generate master secret values as shown
+below. For the handshake variants with only one secret, a fixed string of 0s
+(indicated by 0 in the table above) is used instead, allowing for a
+uniform derivation process for all handshake modes.
 
-                                 Premaster Secret <---------+
-                                        |                   |
-                                       PRF                  |
-                                        |                   |
-                                        v                   |
-      Handshake   <-PRF-           Handshake                |
-     Traffic Keys                 Master Secret             |
-                                        |                   | Via
-                                        |                   | Session
-                             +----------+----------+        | Cache
-                             |                     |        |
-                            PRF                   PRF       |
-                             |                     |        |
-                             v                     v        |
-     Application  <-PRF-  Master               Resumption   |
-    Traffic Keys          Secret               Premaster  --+
-                                                 Secret
+The diagram below shows the derivation process modeled on HKDF {{RFC5869}}.
+In this diagram, PRF indicates an ordinary TLS PRF and PRFH indicates
+a PRF which includes the session hash {{the-session-hash}}.
 
-First, as soon as the ClientKeyShare and ServerKeyShare messages
-have been exchanged, the client and server each use the
-unauthenticated key shares to generate a master secret which is used
-for the protection of the remaining handshake records. Specifically,
-they generate:
+[[OPEN ISSUE: Can we just make this HKDF?]]
+[[OPEN ISSUE: In prior TLS, every PRF invocation had a label, but the
+AMS and MS derivations don't have one here. Should we add that?]]
 
-       hs_master_secret = PRF(pre_master_secret, "handshake master secret",
-                              session_hash)
-                              [0..47];
+                                        0
+                                        |                         
+                                        |                         
+                                       PRF <- Static Secret <-----+
+                                        |                         |
+        Early Application               v                         |
+          Traffic Keys    <-PRFH-     Auth.                       |
+                                     Master                       |
+                                        |                         |
+                                        |                         | Via
+                                        |                         | Session
+                                       PRF <- Ephemeral Secret    | Cache
+                                        |                         | 
+                                        v                         |
+             Handshake     <-PRFH-    Master                      |
+           Traffic Keys               Secret                      |
+                                        |                         |
+                                        |                         |
+            Application    <-PRFH-------+-------PRFH->        Resumption        
+           Traffic Keys                 |                       Master
+                                        |                       Secret  
+                                        |
+              Exporter     <-PRFH-------+
+               Master
+               Secret
 
-During resumption, the premaster secret is initialized with the
-"resumption premaster secret", rather than using the values from the
-ClientKeyShare/ServerKeyShare exchange.
+First, as soon as the ServerHello has been exchanged,
+SS is determined and is used to compute the authentication master
+secret (AMS), using:
 
-This master secret value is used to generate the record protection
-keys used for the handshake, as described in {{key-calculation}}.
+       AMS = PRF(0, "authentication_master_secret", SS)[0..47];
 
-Once the hs_master_secret has been computed, the premaster secret SHOULD
-be deleted from memory.
+If SS is not available, then a 48-byte string of 0s is used instead.
+Once the AMS has been computed, SS SHOULD be deleted from memory
+if possible.
 
-Once the last non-Finished message has been sent, the client and
-server then compute the master secret which will be used for the
-remainder of the session.  It is also used with TLS Exporters {{RFC5705}}.
+AMS is used to compute for three purposes:
 
-       master_secret = PRF(hs_master_secret, "extended master secret",
-                           session_hash)
-                           [0..47];
+  1. To compute the Master Secret.
 
-If the server does not request client authentication, the master
-secret can be computed at the time that the server sends its Finished,
-thus allowing the server to send traffic on its first flight (See
-[TODO] for security considerations on this practice.)  If the server
-requests client authentication, this secret can be computed after the
-client's Certificate and CertificateVerify have been sent, or, if the
-client refuses client authentication, after the client's empty
-Certificate message has been sent.
+  1. As the master secret to compute record protection keys for 0-RTT
+     application data.
+  
+  3. To compute the Finished message for modes which have
+     ES != 0.
+     
+As soon as the ClientKeyShare and ServerKeyShare messages have been
+exchanged, the client and server each use the unauthenticated key
+shares to copute EE and then the master secret (MS).
 
-For full handshakes, each side also derives a new secret which will
-be used as the premaster_secret for future resumptions of the
-newly established session. This is computed as:
+       MS = PRF(AMS, "master_secret", EE)
 
-       resumption_premaster_secret = PRF(hs_master_secret,
-                                         "resumption premaster secret",
-                                         session_hash)
-                                         [0..47];
+If EE is not available, then a 48-byte string of 0s is used.
 
-The session_hash value is a running hash of the handshake as
-defined in {{the-session-hash}}. Thus, the hs_master_secret
-is generated using a different session_hash from the other
-two secrets.
+This master secret value is used for five purposes:
+
+  1. To compute the record protection keys used for the handshake, as
+     described in {{key-calculation}}.
+
+  2. To compute the final application traffic protection keys,
+     as described in {{key-calculation}}.
+
+  3. To compute the resumption master secret (RMS) as described below.
+
+  4. To compute the exporter master secret (EMS) as described below.
+
+  5. To compute the Finished message for modes where ES = 0.
+
+The first of these computations can be performed as soon as the MS
+is computed.
+
+If the server does not request client authentication, the rest of
+these computations performed at the time that the server sends its
+Finished, thus allowing the server to send traffic on its first flight
+(see [TODO] for security considerations on this practice.)  If the
+server requests client authentication, these computations can be
+computed after the client's Certificate and CertificateVerify have
+been sent, or, if the client refuses client authentication, after the
+client's empty Certificate message has been sent.
+
+The exporter master secret (EMS) is computed as:
+
+       EMS = PRF(MS, "exporter_master_secret", session_hash)[0..48]
+
+In full handshakes a resumption master secret (RMS) is computed as:
+
+       RMS = PRF(MS, "resumption_master_secret", session_hash)[0..48]
+
+The session_hash value is a running hash of the handshake at the current
+point, as defined in {{the-session-hash}}
 
 All master secrets are always exactly 48 bytes in length. The length
-of the premaster secret will vary depending on key exchange method.
+of SS and ES will vary depending on key exchange method.
+
 
 ###  The Session Hash
 
@@ -2927,17 +3278,17 @@ first flight, as it covers the client's Certificate and CertificateVerify.
 
 ###  Diffie-Hellman
 
-A conventional Diffie-Hellman computation is performed {{DH}}. The negotiated key (Z)
-is used as the pre_master_secret, and is converted into the master_secret, as
+A conventional Diffie-Hellman computation is performed. The negotiated key (Z)
+is used as the shared_secret, and is converted into the master secrets, as
 specified above. Leading bytes of Z that contain all zero bits are stripped
-before it is used as the pre_master_secret.
+before it is used as the input to the PRF.
 
 ### Elliptic Curve Diffie-Hellman
 
 All ECDH calculations (including parameter and key generation as well
 as the shared secret calculation) are performed according to [6]
 using the ECKAS-DH1 scheme with the identity map as key derivation
-function (KDF), so that the premaster secret is the x-coordinate of
+function (KDF), so that the shared secret is the x-coordinate of
 the ECDH shared secret elliptic curve point represented as an octet
 string.  Note that this octet string (Z in IEEE 1363 terminology) as
 output by FE2OSP, the Field Element to Octet String Conversion
@@ -2946,8 +3297,8 @@ found in this octet string MUST NOT be truncated.
 
 (Note that this use of the identity KDF is a technicality.  The
 complete picture is that ECDH is employed with a non-trivial KDF
-because TLS does not directly use the premaster secret for anything
-other than for computing the master secret.)
+because TLS does not directly use this secret for anything
+other than for computing other secrets.)
 
 
 #  Mandatory Cipher Suites
@@ -3407,13 +3758,12 @@ clients must supply an acceptable certificate to the server. Each party is
 responsible for verifying that the other's certificate is valid and has not
 expired or been revoked.
 
-The general goal of the key exchange process is to create a pre_master_secret
-known to the communicating parties and not to attackers. The pre_master_secret
-will be used to generate the master_secret (see
-{{computing-the-master-secret}}). The master_secret is required to generate the
+The general goal of the key exchange process is to create a master_secret
+known to the communicating parties and not to attackers (see
+{{computing-the-master-secrets}}). The master_secret is required to generate the
 Finished messages and record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
-that they know the correct pre_master_secret.
+that they know the correct master_secret.
 
 ####  Anonymous Key Exchange
 
