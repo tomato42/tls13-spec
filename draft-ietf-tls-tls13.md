@@ -312,6 +312,8 @@ draft-05
 
 - Prohibit SSL negotiation for backwards compatibility.
 
+- Start integration of Hugo Krawczyk's semi-ephemeral DH proposal.
+
 draft-04
 
 - Modify key computations to include session hash.
@@ -327,7 +329,6 @@ draft-04
 - Update format of signatures with context.
 
 - Remove point format negotiation.
-
 
 draft-03
 
@@ -2929,16 +2930,16 @@ first flight, as it covers the client's Certificate and CertificateVerify.
 ###  Diffie-Hellman
 
 A conventional Diffie-Hellman computation is performed. The negotiated key (Z)
-is used as the pre_master_secret, and is converted into the master_secret, as
+is used as the shared_secret, and is converted into the master secrets, as
 specified above. Leading bytes of Z that contain all zero bits are stripped
-before it is used as the pre_master_secret.
+before it is used as the input to the PRF.
 
 ### Elliptic Curve Diffie-Hellman
 
 All ECDH calculations (including parameter and key generation as well
 as the shared secret calculation) are performed according to [6]
 using the ECKAS-DH1 scheme with the identity map as key derivation
-function (KDF), so that the premaster secret is the x-coordinate of
+function (KDF), so that the shared secret is the x-coordinate of
 the ECDH shared secret elliptic curve point represented as an octet
 string.  Note that this octet string (Z in IEEE 1363 terminology) as
 output by FE2OSP, the Field Element to Octet String Conversion
@@ -3541,7 +3542,7 @@ expired or been revoked.
 The general goal of the key exchange process is to create a pre_master_secret
 known to the communicating parties and not to attackers. The pre_master_secret
 will be used to generate the master_secret (see
-{{computing-the-master-secret}}). The master_secret is required to generate the
+{{computing-the-master-secrets}}). The master_secret is required to generate the
 Finished messages and record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
 that they know the correct pre_master_secret.
