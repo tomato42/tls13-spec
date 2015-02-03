@@ -2265,10 +2265,55 @@ must consider the supported groups in both cases.
 [[TODO: IANA Considerations.]]
 
 
+##### Known Key Extension
+
+The known configuration extension allows the client to indicate that
+it already knows the server's cryptographic key (either a DH share
+or a pre-shared key). In the case of a DH share, this extension
+allows the omission of the server certificate and signature, with
+three potential benefits:
+
+- Shortening the handshake because the certificate may be large.
+
+- Reducing cryptographic burden on the server if the server has
+  an RSA certificate.
+
+- Allowing the client and server to do a 0-RTT exchange [TODO].
+
+
+In the case of a pre-shared key (PSK), this extension is used to
+communicate the PSK which the client desires to use.
+
+%%% Hello Messages
+          struct {
+            opaque key_identifier<2 .. 16-1>;
+          } KnownKeyExtension
+
+key_identifier
+: An opaque label for the key in question.
+
+{:br }
+
+A client which wishes to reuse a known key MAY supply a single
+KnownKeyExtension value which indicates the known key it desires
+to use. It is a fatal error to supply more than one extension.
+A client which wishes to use a pre-shared key MUST supply the
+identity of the key in this extension.
+
+A server which wishes to use the key echoes the extension
+in its ServerHello. A server MUST NOT negotiate PSK cipher
+modes unless it also agrees upon a known key.
+
+When the client and server mutually agree upon a known key via
+this mechanism, the server MUST omit the Certificate and CertificateVerify
+messages from its response: they are unnecessary in the case of
+a known DH share and are never used with a pre-shared key.
+
+
 ##### Early Data Extension
 
 TLS versions before 1.3 have a strict message ordering and do not
-permit additional messages to follow the ClientHello. The EarlyData
+    permit additional messages to follow the ClientHello. The EarlyData
 extension allows TLS messages which would otherwise be sent as
 separate records to be instead inserted in the ClientHello. The
 extension simply contains the TLS records which would otherwise have
@@ -2385,11 +2430,12 @@ extensions
 
 When this message will be sent:
 
-> The server MUST send a Certificate message whenever the agreed-upon key
-exchange method uses certificates for authentication (this includes all key
-exchange methods defined in this document except DH_anon). This message will
-always immediately follow either the EncryptedExtensions message if one is
-sent or the ServerKeyShare message.
+> The server MUST send a Certificate message whenever the agreed-upon
+key exchange method uses certificates for authentication (this
+includes all key exchange methods defined in this document except
+DH_anon), and unless the KnownKeyExtension is used. This message will
+always immediately follow either the EncryptedExtensions message if
+one is sent or the ServerKeyShare message.
 
 
 Meaning of this message:
@@ -3539,13 +3585,12 @@ clients must supply an acceptable certificate to the server. Each party is
 responsible for verifying that the other's certificate is valid and has not
 expired or been revoked.
 
-The general goal of the key exchange process is to create a pre_master_secret
-known to the communicating parties and not to attackers. The pre_master_secret
-will be used to generate the master_secret (see
-{{computing-the-master-secrets}}). The master_secret is required to generate the
+The general goal of the key exchange process is to create a master_secret
+known to the communicating parties and not to attackers (see
+{{computing-the-master-secret}}). The master_secret is required to generate the
 Finished messages and record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
-that they know the correct pre_master_secret.
+that they know the correct master_secret.
 
 ####  Anonymous Key Exchange
 
