@@ -2868,62 +2868,107 @@ cipher_suite selected by the server and revealed in the ServerHello
 message. The random values are exchanged in the hello messages. All
 that remains is to calculate the master secret.
 
-##  Computing the Master Secret
+##  Computing the Master Secrets
 
-The pre_master_secret is used to generate a series of master secret values,
-as shown in the following diagram and described below.
+The TLS handshake establishes secret keying material which is then used
+to protect traffic. Depending on the handshake parameters, this keying
+material may be derived from either one or two shared secrets, as described
+in the table below:
+
+~~~
+    Key Exchange            Static Secret (SS)    Ephemeral Secret (ES)
+    ------------            ------------------    ---------------------
+    (EC)DHE                                 0          Client ephemeral
+                                                    w/ server ephemeral
+    
+    (EC)DHE                   Client ephemeral         Client ephemeral
+    (known server key)            w/ Known Key      w/ server ephemeral
+    
+    PSK                         Pre-Shared Key                        0
+    
+    PSK + (EC)DHE               Pre-Shared Key         Client ephemeral
+                                                    w/ server ephemeral
+    
+    Resumption                  Resumption PMS                        0
+~~~
+
+These shared secret values are used to generate master secret values as shown
+below. For the handshake variants with only one secret, a fixed string of 0s
+(indicated by 0 in the table above) is used instead, allowing for a
+uniform derivation process for all handshake modes.
+
+The diagram below shows the derivation process:
 
 
-                                 Premaster Secret <---------+
-                                        |                   |
-                                       PRF                  |
-                                        |                   |
-                                        v                   |
-      Handshake   <-PRF-           Handshake                |
-     Traffic Keys                 Master Secret             | 
-                                        |                   | Via
-                                        |                   | Session
-                             +----------+----------+        | Cache
-                             |                     |        |
-                            PRF                   PRF       |
-                             |                     |        |
-                             v                     v        |
-     Application  <-PRF-  Master               Resumption   |
-    Traffic Keys          Secret               Premaster  --+
-                                                 Secret
+                                 Static Secret    <---------------+
+                                        |                         |
+                                       PRF                        |
+                                        |                         |
+                                        v                         |
+        Early Application   <- PRF-  Master                       |
+          Traffic Keys              Secret 1                      |
+                                        |                         |
+                                        |                         | Via
+                   Ephemeral Secret -> PRF                        | Session
+                                        |                         | Cache
+                                        |                         |
+                                        v                         |
+             Handshake       <-PRF-  Master                       |
+          Traffic Keys              Secret 2                      |
+                                        |                         |
+                                        v                         |
+                Application  <-PRF-  Master  -PRF->  Resumption   |
+               Traffic Keys         Secret 3         Premaster  --+
+                                                     Secret       
+                            
 
-First, as soon as the ClientKeyShare and ServerKeyShare messages
+First, as soon as the ServerHello has been exchanged,
+SS is determined and is used to compute Master Secret 1, using:
+
+       master_secret_1 = PRF(SS, "master_secret_1",
+                             session_hash)
+                             [0..47];
+
+If SS is not available, then a 48-byte string of 0s is used.
+
+
+Master Secret 1 is used for two purposes:
+
+  1. To compute traffic keys for 0-RTT application data.
+  
+  2. To compute Master Secret 2, along with EE..
+
+
+As soon as the ClientKeyShare and ServerKeyShare messages
 have been exchanged, the client and server each use the
-unauthenticated key shares to generate a master secret which is used
-for the protection of the remaining handshake records. Specifically,
-they generate:
+unauthenticated key shares in combination with MS1 to compute
+Master Secret 2:
 
-       hs_master_secret = PRF(pre_master_secret, "handshake master secret",
-                              session_hash)
-                              [0..47];
+       master_secret_2 = PRF(PRF(master_secret_1, EE),
+                             "master_secret_2",
+                             session_hash)
+                             [0..47];
 
-During resumption, the premaster secret is initialized with the
-"resumption premaster secret", rather than using the values from the
-ClientKeyShare/ServerKeyShare exchange.
+If EE is not available, then a 48-byte string of 0s is used.
+
 
 This master secret value is used to generate the record protection
-keys used for the handshake, as described in {{key-calculation}}. It is
-also used with TLS Exporters {{RFC5705}}.
+keys used for the handshake, as described in {{key-calculation}}.
 
-Once the hs_master_secret has been computed, the premaster secret SHOULD
+Once the master_secret_2 has been computed, the premaster secret SHOULD
 be deleted from memory.
+
 
 Once the last non-Finished message has been sent, the client and
 server then compute the master secret which will be used for the
-remainder of the session:
+remainder of the session. It is also used with TLS Exporters {{RFC5705}}.
 
-       master_secret = PRF(hs_master_secret, "extended master secret",
+       master_secret = PRF(master_secret_3, "master_secret_3",
                            session_hash)
                            [0..47];
 
-
-If the server does not request client authentication, the master
-secret can be computed at the time that the server sends its Finished,
+If the server does not request client authentication, Master Secret 3
+can be computed at the time that the server sends its Finished,
 thus allowing the server to send traffic on its first flight (see
 [TODO] for security considerations on this practice.)  If the server
 requests client authentication, this secret can be computed after the
@@ -2935,18 +2980,16 @@ For full handshakes, each side also derives a new secret which will
 be used as the premaster_secret for future resumptions of the
 newly established session. This is computed as:
 
-       resumption_premaster_secret = PRF(hs_master_secret,
+       resumption_premaster_secret = PRF(master_secret_2,
                                          "resumption premaster secret",
                                          session_hash)
                                          [0..47];
 
 The session_hash value is a running hash of the handshake as
-defined in {{the-session-hash}}. Thus, the hs_master_secret
-is generated using a different session_hash from the other
-two secrets.
+defined in {{the-session-hash}}. 
 
 All master secrets are always exactly 48 bytes in length. The length
-of the premaster secret will vary depending on key exchange method.
+of SS and ES will vary depending on key exchange method.
 
 
 ###  The Session Hash
@@ -2990,7 +3033,7 @@ the ECDH shared secret elliptic curve point represented as an octet
 string.  Note that this octet string (Z in IEEE 1363 terminology) as
 output by FE2OSP, the Field Element to Octet String Conversion
 Primitive, has constant length for any given field; leading zeros
-found in this octet string MUST NOT be truncated.
+           found in this octet string MUST NOT be truncated.
 
 (Note that this use of the identity KDF is a technicality.  The
 complete picture is that ECDH is employed with a non-trivial KDF
@@ -3587,7 +3630,7 @@ expired or been revoked.
 
 The general goal of the key exchange process is to create a master_secret
 known to the communicating parties and not to attackers (see
-{{computing-the-master-secret}}). The master_secret is required to generate the
+{{computing-the-master-secrets}}). The master_secret is required to generate the
 Finished messages and record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
 that they know the correct master_secret.
