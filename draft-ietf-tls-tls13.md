@@ -853,16 +853,12 @@ record protection algorithm
   includes the key size of this algorithm and the lengths of explicit
   and implicit initialization vectors (or nonces).
 
-handshake master secret
-
-: A 48-byte secret shared between the two peers in the connection and
-used to generate keys for protecting the handshake.
-
-
 master secret
 
 : A 48-byte secret shared between the two peers in the connection
-and used to generate keys for protecting application data.
+and used to generate keys for protecting data. The TLS handshake
+generates multiple master secrets in different handshake phases.
+
 
 client random
 
@@ -1404,6 +1400,7 @@ New Alert values are assigned by IANA as described in {{iana-considerations}}.
 
 ##  Handshake Protocol Overview
 
+[[TODO: Rewrite to handle the new message flow.]]
 The cryptographic parameters of the session state are produced by the TLS
 Handshake Protocol, which operates on top of the TLS record layer. When a TLS
 client and server first start communicating, they agree on a protocol version,
@@ -1416,12 +1413,12 @@ The TLS Handshake Protocol involves the following steps:
    algorithms, exchange random values, and check for session resumption.
 
 -  Exchange the necessary cryptographic parameters to allow the
-  client and server to agree on a premaster secret.
+  client and server to agree on shared secret values.
 
 -  Exchange certificates and cryptographic information to allow the
   client and server to authenticate themselves.
 
--  Generate a master secret from the premaster secret and exchanged
+-  Generate a series of master secrets from the shared secrets and exchanged
   random values.
 
 -  Provide security parameters to the record layer.
@@ -1585,7 +1582,7 @@ ServerHello with the same Session ID value. At this point, both client
 and server MUST proceed directly to sending Finished messages, which
 are protected using handshake keys as described above, computed using
 resumption premaster secret created in the first handshake as the
-premaster secret. Once the
+static secret (no ephemeral secret is used). Once the
 re-establishment is complete, the client and server MAY begin to
 exchange application layer data, which is protected using the
 application secrets (See flow chart below.) If a Session ID match is
@@ -2370,8 +2367,8 @@ with the selected cipher suite and group parameters.
 Meaning of this message:
 
 > This message conveys cryptographic information to allow the client to
-compute the premaster secret: a Diffie-Hellman public key with which the
-client can complete a key exchange (with the result being the premaster secret)
+compute a shared secret secret: a Diffie-Hellman public key with which the
+client can complete a key exchange (with the result being the shared secret)
 or a public key for some other algorithm.
 
 Structure of this message:
@@ -2782,8 +2779,7 @@ Meaning of this message:
 
 > This message conveys the client's certificate chain to the server; the server
 will use it when verifying the CertificateVerify message (when the client
-authentication is based on signing) or calculating the premaster secret (for
-non-ephemeral Diffie- Hellman). The certificate MUST be appropriate for the
+authentication is based on signing). The certificate MUST be appropriate for the
 negotiated cipher suite's key exchange algorithm, and any negotiated extensions.
 
 In particular:
@@ -3037,12 +3033,12 @@ the ECDH shared secret elliptic curve point represented as an octet
 string.  Note that this octet string (Z in IEEE 1363 terminology) as
 output by FE2OSP, the Field Element to Octet String Conversion
 Primitive, has constant length for any given field; leading zeros
-           found in this octet string MUST NOT be truncated.
+found in this octet string MUST NOT be truncated.
 
 (Note that this use of the identity KDF is a technicality.  The
 complete picture is that ECDH is employed with a non-trivial KDF
-because TLS does not directly use the premaster secret for anything
-other than for computing the master secret.)
+because TLS does not directly use this secret for anything
+other than for computing other secrets.)
 
 #  Mandatory Cipher Suites
 
