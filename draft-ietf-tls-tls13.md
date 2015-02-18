@@ -2262,13 +2262,13 @@ must consider the supported groups in both cases.
 [[TODO: IANA Considerations.]]
 
 
-##### Known Key Extension
+##### Known Configuration Extension
 
 The known configuration extension allows the client to indicate that
-it already knows the server's cryptographic key (either a DH share
-or a pre-shared key). In the case of a DH share, this extension
-allows the omission of the server certificate and signature, with
-three potential benefits:
+it already knows either the server's cryptographic key (either a DH
+share or a pre-shared key) or the server's entire state. In the case
+of a DH share, this extension allows the omission of the server
+certificate and signature, with three potential benefits:
 
 - Shortening the handshake because the certificate may be large.
 
@@ -2282,17 +2282,28 @@ In the case of a pre-shared key (PSK), this extension is used to
 communicate the PSK which the client desires to use.
 
 %%% Hello Messages
+          enum { known_key(1), known_configuration(2), (255) }
+            ConfigurationType;
+
           struct {
-            opaque key_identifier<2 .. 16-1>;
-          } KnownKeyExtension
+            ConfigurationType type;
+            opaque identifier<2 .. 2^16-1>;
+          } KnownConfigurationExtension
 
 key_identifier
-: An opaque label for the key in question.
+: An opaque label for the configuration in question.
 
 {:br }
 
-A client which wishes to reuse a known key MAY supply a single
-KnownKeyExtension value which indicates the known key it desires
+This extension comes in two flavors:
+
+- An indication of a specific known key.
+
+- An indication of a complete configuration (cipher suites,
+  extensions, etc.)
+
+A client which wishes to reuse a known configuration MAY supply a single
+KnownConfigurationExtension value which indicates the known configuration it desires
 to use. It is a fatal error to supply more than one extension.
 A client which wishes to use a pre-shared key MUST supply the
 identity of the key in this extension.
@@ -2301,16 +2312,30 @@ A server which wishes to use the key echoes the extension
 in its ServerHello. A server MUST NOT negotiate PSK cipher
 modes unless it also agrees upon a known key.
 
-When the client and server mutually agree upon a known key via
-this mechanism, the server MUST omit the Certificate and CertificateVerify
-messages from its response: they are unnecessary in the case of
-a known DH share and are never used with a pre-shared key.
+When the client and server mutually agree upon a known configuration via this
+mechanism, the server MUST reply with a shortened handshake. Specifically:
+
+- If a known_key is specified, the server MUST omit the Certificate and CertificateVerify
+  messages from its response: they are unnecessary in the case of a
+  known DH share and are never used with a pre-shared key.
+
+- If a known_configuration is specified, the server MUST also respond with
+  a shortened ServerHello consisting solely of the negotiated
+  cipher suite and the echoed known configuration extension.
+  The client and the server mutually adopt the configuration
+  associated with the configuration ID.
+
+[[TODO: This is redundant with session resumption, but the idea is to
+deprecate session resumption in favor of this more general notion.
+The issue is that in order for 0-RTT to work, we need to have a single
+defined configuration for the client's data, and that's easiest
+if the client just specifies a defined configuration.]]
 
 
 ##### Early Data Extension
 
 TLS versions before 1.3 have a strict message ordering and do not
-    permit additional messages to follow the ClientHello. The EarlyData
+permit additional messages to follow the ClientHello. The EarlyData
 extension allows TLS messages which would otherwise be sent as
 separate records to be instead inserted in the ClientHello. The
 extension simply contains the TLS records which would otherwise have
