@@ -1570,6 +1570,7 @@ If no common cryptographic parameters can be negotiated, the server
 will send a fatal alert.
 
 
+[[TODO: Remove this if we move to 
 When the client and server decide to resume a previous session or duplicate an
 existing session (instead of negotiating new security parameters), the message
 flow is as follows:
@@ -1602,6 +1603,7 @@ and server perform a full handshake.
 
 The contents and significance of each message will be presented in detail in
 the following sections.
+
 
 ##  Handshake Protocol
 
