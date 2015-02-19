@@ -316,7 +316,7 @@ interpreted as described in RFC 2119 {{RFC2119}}.
 
 draft-05
 
-- Start integration of Hugo Krawczyk's semi-ephemeral DH proposal.
+- Start integration of semi-ephemeral DH proposal.
 
 draft-04
 
@@ -1569,8 +1569,30 @@ the same negotiated parameters.]]
 If no common cryptographic parameters can be negotiated, the server
 will send a fatal alert.
 
+In cases where the client and server have communicated before
+and the server has indicated willingness, the
+client can consolidate its entire first flight of messages to the server as well as send application data
+in its first flight, as shown below:
 
-[[TODO: Remove this if we move to 
+       Client                                               Server
+
+       ClientHello
+       ClientKeyShare
+       {Certificate*}
+       {CertificateVerify*}
+       {Finished}              
+       [Application Data]        -------->
+                                                       ServerHello
+                                                    ServerKeyShare
+                                 <--------              {Finished}
+       [Application Data]        <------->      [Application Data]
+
+
+                Figure X.  Message flow for a full handshake
+
+
+[[TODO: Remove the following if we move to a PSK-based resumption flow.]]
+
 When the client and server decide to resume a previous session or duplicate an
 existing session (instead of negotiating new security parameters), the message
 flow is as follows:
@@ -1600,6 +1622,7 @@ and server perform a full handshake.
        [Application Data]            <------->   [Application Data]
 
            Figure 3.  Message flow for an abbreviated handshake
+
 
 The contents and significance of each message will be presented in detail in
 the following sections.
@@ -2336,7 +2359,6 @@ deprecate session resumption in favor of this more general notion.
 The issue is that in order for 0-RTT to work, we need to have a single
 defined configuration for the client's data, and that's easiest
 if the client just specifies a defined configuration.]]
-
 
 ##### Early Data Extension
 
