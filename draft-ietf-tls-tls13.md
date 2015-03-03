@@ -1507,6 +1507,7 @@ about server-side False Start.]]
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
+                                             {ServerConfiguration}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1544,6 +1545,7 @@ ClientKeyShare, as shown in Figure 2:
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
+                                             {ServerConfiguration}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1638,8 +1640,8 @@ processed and transmitted as specified by the current active session state.
            reserved(0), client_hello(1), server_hello(2),
            client_key_share(5), hello_retry_request(6),
            server_key_share(7), certificate(11), reserved(12),
-           certificate_request(13), certificate_verify(15),
-           reserved(16), finished(20), (255)
+           certificate_request(13), server_configuration(14),
+           certificate_verify(15), reserved(16), finished(20), (255)
        } HandshakeType;
 
        struct {
@@ -1653,6 +1655,7 @@ processed and transmitted as specified by the current active session state.
                case server_key_share:    ServerKeyShare;
                case certificate:         Certificate;
                case certificate_request: CertificateRequest;
+               case server_configuration:ServerConfiguration;
                case certificate_verify:  CertificateVerify;
                case finished:            Finished;
            } body;
@@ -2415,6 +2418,18 @@ It is a fatal error for the server to respond with a non-empty
 context identifier other than the one in the client's ClientHello.
 
 
+[[OPEN ISSUE: This just specifies the signaling for 0-RTT but
+not the the 0-RTT cryptographic transforms, including:
+
+- What is in the session hash (including potentially some
+  speculative data from the server.)
+- What is signed in the client's CertificateVerify
+- Whether we really want the Finished to not include the
+  server's data at all.
+
+What's here now needs a lot of cleanup before it is clear
+and correct.]]
+  
 
 ##### Early Data Extension
 
@@ -2729,6 +2744,55 @@ Note: Values listed as RESERVED may not be used. They were used in SSLv3.
 
 Note: It is a fatal handshake_failure alert for an anonymous server to request
 client authentication.
+
+
+###  Server Configuration
+
+[TODO: Clean up the before and after messages.]
+
+When this message will be sent:
+
+> This message is used to provide a server configuration which
+the client can use in future to skip handshake negotiation and
+(optionally) to allow 0-RTT handshakes. The ServerConfiguration
+message is sent as the last message before the CertificateVerify.
+
+[TODO(ekr@rtfm.com): Should we send this in Update instead?
+Wouldn't that be nice?]
+
+Structure of this Message:
+
+%%% Hello Messages
+          struct {
+              opaque configuration_id<0..2^16-1>;
+              NamedGroup group;
+              opaque server_key<1..2^16-1>;
+              opaque zero_rt_id<0..2^16-1>;
+          } ServerConfiguration;
+
+
+configuration_id
+: The configuration identifier to be used with the known configuration
+extension {{known-configuration-extension}}.
+
+group
+: The group for the long-term DH key that is being established
+for this configuration.
+
+server_key
+: The long-term DH key that is being established for this configuration.
+
+zero_tr_id
+: The identifier for the 0-RT context (if any) being established by this
+handshake.
+
+{:br }
+
+The semantics of this message are to establish a shared state between
+the client and server for a configuration of type known_configuration
+with the key specified in key and with the handshake parameters negotiated
+by this handshake. If a non-empty zero_rt_id is established,
+then the client can use a 0-RT handshake as shown in Figure 3.
 
 
 ###  Server Certificate Verify
