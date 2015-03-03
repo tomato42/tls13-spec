@@ -2374,6 +2374,7 @@ feature.
 
 %%% Hello Messages
           struct {
+            uint32 timestamp;
             opaque identifier<2 .. 2^16-1>;
           } ZeroRoundTripContextExtension
 
@@ -2765,6 +2766,7 @@ Structure of this Message:
 %%% Hello Messages
           struct {
               opaque configuration_id<0..2^16-1>;
+              uint32 expiration_date;
               NamedGroup group;
               opaque server_key<1..2^16-1>;
               opaque zero_rt_id<0..2^16-1>;
@@ -2778,6 +2780,10 @@ extension {{known-configuration-extension}}.
 group
 : The group for the long-term DH key that is being established
 for this configuration.
+
+expiration_date
+: The last time when this configuration is expected to be valid
+(in seconds since the Unix epoch).
 
 server_key
 : The long-term DH key that is being established for this configuration.
