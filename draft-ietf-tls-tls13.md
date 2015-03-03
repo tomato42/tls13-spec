@@ -1584,11 +1584,11 @@ in its first flight, as shown below:
        [Application Data]        <------->      [Application Data]
 
 
-                Figure X.  Message flow for a full handshake
+                Figure 3.  Message flow for a zero round trip handshake
+                
 
-
-[[TODO: Remove the following if we move to a PSK-based resumption flow.]]
-
+{::comment}
+[TODO(ekr@rtfm.com): RESUMPTION]
 When the client and server decide to resume a previous session or duplicate an
 existing session (instead of negotiating new security parameters), the message
 flow is as follows:
@@ -1619,6 +1619,7 @@ and server perform a full handshake.
 
            Figure 3.  Message flow for an abbreviated handshake
 
+{:/comment}
 
 The contents and significance of each message will be presented in detail in
 the following sections.
@@ -2356,8 +2357,71 @@ The issue is that in order for 0-RTT to work, we need to have a single
 defined configuration for the client's data, and that's easiest
 if the client just specifies a defined configuration.]]
 
+
+##### Zero-Round Trip Context Extension
+
+[TODO(ekr@rtfm.com): Ugh, this is a terrible name.]
+
+In cases where TLS clients have previously interacted with the 
+server, it is possible to do a zero round-trip handshake
+where the client sends the entire handshake and potentially
+application data to the server on its first flight. The
+ZeroRoundTripContext extension is used to negotiate this
+feature.
+
+%%% Hello Messages
+          struct {
+            opaque identifier<2 .. 2^16-1>;
+          } ZeroRoundTripContextExtension
+
+
+A client can indicate its desire to do a 0-RT handshake
+by including a ZeroRoundTripContext extension in its ClientHello.
+An empty extension indicates that the client is willing
+to do 0-RT handshakes but has not yet established enough
+context with the server to do so. In this case, the
+client's first flight is as shown in Figure 1.
+
+Once the client and the server have established a 0-RT context (see
+Section XXX), the client can indicate that its first flight is
+intended to be 0-RT by including the extension in its ClientHello with
+the identifier of the context. It is a fatal error to include
+a non-empty extension without also including KnownConfiguration
+extension of type "known_configuration" indicating the cryptographic
+parameters used to protect the data.In this case, the client's first flight
+will be as shown in Figure 3.
+
+A server which receives a ZeroRoundTripContext extension can
+behave in one of three ways:
+
+- Ignore the extension and return no response. This indicates
+  that the server is unwilling to do a 0-RT handshake. The
+  server MUST ignore any additional 0-RT data sent in the first
+  flight and the client MUST complete an ordinary handshake
+  as shown in Figure 1.
+
+- Return an empty extension, indicating willingness to do 0-RT
+  handshakes but that this handshake will not be 0-RT. Any
+  0-RT data sent in the first flight is ignored as in the previous
+  case. The server MUST then establish a 0-RT context as
+  described in Section XXX.
+
+- Echo the clients non-empty context identifier, indicating a
+  successful agreement on a 0-RT handshake. In this case, the
+  server will proceed to process the client's first flight
+  0-RT data.
+
+It is a fatal error for the server to respond with a non-empty
+context identifier other than the one in the client's ClientHello.
+
+
+
 ##### Early Data Extension
 
+[TODO(ekr@rtfm.com): I think we should just push this into a
+ClientHello extension directly and then decree that any
+0-RTT data needs to be in separate messages.]
+    
 TLS versions before 1.3 have a strict message ordering and do not
 permit additional messages to follow the ClientHello. The EarlyData
 extension allows TLS messages which would otherwise be sent as
