@@ -118,6 +118,7 @@ informative:
   I-D.ietf-tls-session-hash:
   I-D.ietf-tls-sslv3-diediedie:
 
+
   CBCATT:
        title: "Security of CBC Ciphersuites in SSL/TLS: Problems and Countermeasures"
        target: http://www.openssl.org/~bodo/tls-cbc.txt
@@ -948,7 +949,8 @@ message MAY be fragmented across several records).
 
        enum {
            reserved(20), alert(21), handshake(22),
-           application_data(23), (255)
+           application_data(23), early_handshake(25),
+           (255)
        } ContentType;
 
        struct {
@@ -1588,6 +1590,13 @@ in its first flight, as shown below:
 
                 Figure 3.  Message flow for a zero round trip handshake
                 
+In order to allow the server to clearly distinguish between 0-RTT handshake
+data and 1-RTT handshake data in case of a 0-RTT failure, all handshake
+messages in this flow after the ClientKeyShare shall use the "early_handshake"
+record type. 0-RTT application data from the two phases can be distinguished
+by whether it appears before or after the handshake data.
+[[OPEN ISSUE: Should we use a separate DTLS epoch or just rely on decryption
+failures to reject the data?]]
 
 {::comment}
 [TODO(ekr@rtfm.com): RESUMPTION]
@@ -2408,7 +2417,7 @@ behave in one of three ways:
   handshakes but that this handshake will not be 0-RT. Any
   0-RT data sent in the first flight is ignored as in the previous
   case. The server MUST then establish a 0-RT context as
-  described in Section XXX.
+  described in {{server-configuration}}.
 
 - Echo the clients non-empty context identifier, indicating a
   successful agreement on a 0-RT handshake. In this case, the
@@ -2417,7 +2426,6 @@ behave in one of three ways:
 
 It is a fatal error for the server to respond with a non-empty
 context identifier other than the one in the client's ClientHello.
-
 
 [[OPEN ISSUE: This just specifies the signaling for 0-RTT but
 not the the 0-RTT cryptographic transforms, including:
@@ -2430,7 +2438,49 @@ not the the 0-RTT cryptographic transforms, including:
 
 What's here now needs a lot of cleanup before it is clear
 and correct.]]
-  
+
+
+###### 0-RTT Anti-Replay Handling
+
+In versions of TLS prior to TLS 1.3 and in TLS 1.3 1-RTT mode the
+server ensures that the clients messages are not being replayed by
+providing a fresh Random value in the ServerHello, which is then
+incorporated into the key computation. However, in 0-RTT mode,
+the client can send data prior to the server's first message and
+thus this mechanism is not available to protect that data. Instead,
+the server MUST keep state to ensure that the ClientHello is
+never replayed. If a replay or potential replay is detected, the
+server MUST reject the 0-RTT handshake.
+
+The server can use any mechanism of its choice to keep state, however
+the following mechanism, derived from [I-D.draft-agl-tls-snapstart]
+is RECOMMENDED:
+
+The server's state is stored under the identifier provided in
+the ZeroRoundTripContextExtension. This state includes:
+
+- The time window for which records are being kept.
+- A list of all the client random values which have
+  been received during this time window.
+
+When an attempted 0-RTT handshake is received, the server performs
+the following steps:
+
+- Look up the state from the identifier. If no records are
+  found, the 0-RTT attempt is rejected.
+
+- If the client's timestamp is outside the stored window for
+  this identifier, the 0-RTT attempt is rejected.
+
+- If the client's ClientRandom value is found in the server's
+  database, the 0-RTT attempt is rejected.
+  [[OPEN ISSUE: Should we send an alert if this is TLS, but
+  not DTLS.]]
+
+If all of these checks succeed, the server adds the ClientRandom
+value to the server's database and allows the 0-RTT handshake
+to continue.
+
 
 ##### Early Data Extension
 
@@ -2749,7 +2799,7 @@ client authentication.
 
 ###  Server Configuration
 
-[TODO: Clean up the before and after messages.]
+[TODO: Clean up the messages this comes before and after]
 
 When this message will be sent:
 
@@ -2788,7 +2838,7 @@ expiration_date
 server_key
 : The long-term DH key that is being established for this configuration.
 
-zero_tr_id
+zero_rt_id
 : The identifier for the 0-RT context (if any) being established by this
 handshake.
 
