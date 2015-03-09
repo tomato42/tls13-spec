@@ -37,6 +37,7 @@ normative:
   RFC3447:
   RFC3280:
   RFC5288:
+  RFC5869:
   AES:
        title: Specification for the Advanced Encryption Standard (AES)
        date: 2001-11-26
@@ -1102,11 +1103,11 @@ To generate the key material, compute
 
        key_block = PRF(MS,
                        "key expansion",
-                       SecurityParameters.server_random +
-                       SecurityParameters.client_random);
+                       session_hash);
 
-where MS is the relevant master secret. The PRF is computed enough
-times to generate the necessary amount of data for the key_block,
+where MS is the relevant master secret and
+session_hash is the value defined in {{the-session-hash}}.
+The PRF is computed enough times to generate the necessary amount of data for the key_block,
 which is then partitioned as follows:
 
        client_write_key[SecurityParameters.enc_key_length]
@@ -1141,7 +1142,7 @@ cipher spec
   material, and the record protection algorithm (See
   {{the-security-parameters}} for formal definition.)
 
-resumption premaster secret
+resumption master secret
 : 48-byte secret shared between the client and server.
 
 is resumable
@@ -2941,15 +2942,26 @@ Structure of this message:
        } Finished;
 
 
+The verify_data value is computed as follows:
+
+                       
 verify_data
-:      PRF(hs_master_secret, finished_label, Hash(handshake_messages))
-             [0..verify_data_length-1];
+:      PRF(finished_secret, finished_label, Hash(handshake_messages))
+           [0..verify_data_length-1];
+
+finished_secret
+: The authentication master secret (AMS) for modes where ES != 0
+  and the master secret (MS) for modes where ES = 0.
 
 finished_label
 :       For Finished messages sent by the client, the string
         "client finished".  For Finished messages sent by the server,
         the string "server finished".
 {:br }
+
+[[OPEN ISSUE: In Hugo's diagram, the secrets used for Finished have
+the session_hash merged in, but since we compute the session hash
+here, that seems unnecessary. Double check.]]
 
 > Hash denotes a Hash of the handshake messages. For the PRF defined in
 {{HMAC}}, the Hash MUST be the Hash used as the basis for the PRF. Any cipher
@@ -3126,99 +3138,108 @@ below. For the handshake variants with only one secret, a fixed string of 0s
 (indicated by 0 in the table above) is used instead, allowing for a
 uniform derivation process for all handshake modes.
 
-The diagram below shows the derivation process:
+The diagram below shows the derivation process modeled on HKDF {{RFC5869}}.
+In this diagram, PRF indicates an ordinary TLS PRF and PRFH indicates
+a PRF which includes the session hash {{the-session-hash}}.
 
+[[OPEN ISSUE: Can we just make this HKDF?]]
+[[OPEN ISSUE: In prior TLS, every PRF invocation had a label, but the
+AMS and MS derivations don't have one here. Should we add that?]]
 
-                                 Static Secret    <---------------+
+                                        0
+                                        |                         
+                                        |                         
+                                       PRF <- Static Secret <-----+
                                         |                         |
-                                       PRF                        |
-                                        |                         |
-                                        v                         |
-        Early Application   <- PRF-  Master                       |
-          Traffic Keys              Secret 1                      |
+        Early Application               v                         |
+          Traffic Keys    <-PRFH-     Auth.                       |
+                                     Master                       |
                                         |                         |
                                         |                         | Via
-                   Ephemeral Secret -> PRF                        | Session
-                                        |                         | Cache
-                                        |                         |
+                                        |                         | Session
+                                       PRF <- Ephemeral Secret    | Cache
+                                        |                         | 
                                         v                         |
-             Handshake       <-PRF-  Master                       |
-          Traffic Keys              Secret 2                      |
+             Handshake     <-PRFH-    Master                      |
+           Traffic Keys               Secret                      |
                                         |                         |
-                                        v                         |
-                Application  <-PRF-  Master  -PRF->  Resumption   |
-               Traffic Keys         Secret 3         Premaster  --+
-                                                     Secret       
-                            
+                                        |                         |
+            Application    <-PRFH-------+-------PRFH->        Resumption        
+           Traffic Keys                 |                       Master
+                                        |                       Secret  
+                                        |
+              Exporter     <-PRFH-------+
+               Master
+               Secret
 
 First, as soon as the ServerHello has been exchanged,
-SS is determined and is used to compute Master Secret 1, using:
+SS is determined and is used to compute the authentication master
+secret (AMS), using:
 
-       master_secret_1 = PRF(SS, "master_secret_1",
-                             session_hash)
-                             [0..47];
+       AMS = PRF(0, SS)[0..47];
 
-If SS is not available, then a 48-byte string of 0s is used.
+If SS is not available, then a 48-byte string of 0s is used instead.
+Once the AMS has been computed, SS SHOULD be deleted from memory
+if possible.
 
+AMS is used to compute for three purposes:
 
-Master Secret 1 is used for two purposes:
+  1. To compute the Master Secret.
 
-  1. To compute traffic keys for 0-RTT application data.
+  1. As the master secret to compute record protection keys for 0-RTT
+     application data.
   
-  2. To compute Master Secret 2, along with EE..
+  3. To compute the Finished message for modes which have
+     ES != 0.
+     
+As soon as the ClientKeyShare and ServerKeyShare messages have been
+exchanged, the client and server each use the unauthenticated key
+shares to copute EE and then the master secret (MS).
 
-
-As soon as the ClientKeyShare and ServerKeyShare messages
-have been exchanged, the client and server each use the
-unauthenticated key shares in combination with MS1 to compute
-Master Secret 2:
-
-       master_secret_2 = PRF(PRF(master_secret_1, EE),
-                             "master_secret_2",
-                             session_hash)
-                             [0..47];
+       MS = PRF(AMS, EE)
 
 If EE is not available, then a 48-byte string of 0s is used.
 
+This master secret value is used for five purposes:
 
-This master secret value is used to generate the record protection
-keys used for the handshake, as described in {{key-calculation}}.
+  1. To compute the record protection keys used for the handshake, as
+     described in {{key-calculation}}.
 
-Once the master_secret_2 has been computed, the premaster secret SHOULD
-be deleted from memory.
+  2. To compute the final application traffic protection keys,
+     as described in {{key-calculation}}.
 
+  3. To compute the resumption master secret (RMS) as described below.
 
-Once the last non-Finished message has been sent, the client and
-server then compute the master secret which will be used for the
-remainder of the session. It is also used with TLS Exporters {{RFC5705}}.
+  4. To compute the exporter master secret (EMS) as described below.
 
-       master_secret = PRF(master_secret_3, "master_secret_3",
-                           session_hash)
-                           [0..47];
+  5. To compute the Finished message for modes where ES = 0.
 
-If the server does not request client authentication, Master Secret 3
-can be computed at the time that the server sends its Finished,
-thus allowing the server to send traffic on its first flight (see
-[TODO] for security considerations on this practice.)  If the server
-requests client authentication, this secret can be computed after the
-client's Certificate and CertificateVerify have been sent, or, if the
-client refuses client authentication, after the client's empty
-Certificate message has been sent.
+The first of these computations can be performed as soon as the MS
+is computed.
 
-For full handshakes, each side also derives a new secret which will
-be used as the premaster_secret for future resumptions of the
-newly established session. This is computed as:
+If the server does not request client authentication, the rest of
+these computations performed at the time that the server sends its
+Finished, thus allowing the server to send traffic on its first flight
+(see [TODO] for security considerations on this practice.)  If the
+server requests client authentication, these computations can be
+computed after the client's Certificate and CertificateVerify have
+been sent, or, if the client refuses client authentication, after the
+client's empty Certificate message has been sent.
 
-       resumption_premaster_secret = PRF(master_secret_2,
-                                         "resumption premaster secret",
-                                         session_hash)
-                                         [0..47];
+The exporter master secret (EMS) is computed as:
 
-The session_hash value is a running hash of the handshake as
-defined in {{the-session-hash}}. 
+       EMS = PRF(MS, "exporter_master_secret" + session_hash)[0..48]
+
+In full handshakes a resumption master secret (RMS) is computed as:
+
+       RMS = PRF(MS, "resumption_master_secret" + session_hash)[0..48]
+
+The session_hash value is a running hash of the handshake at the current
+point, as defined in {{the-session-hash}}
 
 All master secrets are always exactly 48 bytes in length. The length
 of SS and ES will vary depending on key exchange method.
+
 
 
 ###  The Session Hash
