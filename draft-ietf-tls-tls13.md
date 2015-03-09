@@ -1457,12 +1457,11 @@ extensions the client offered.
 
 The server can then generate its own keying material share and send a
 ServerKeyShare message which contains its share of the parameters for
-the ephemeral key agreement. The server can now compute a shared secret (the
-ephemeral secret). At this point, the server starts encrypting all
-remaining handshake traffic with the negotiated cipher suite using a
-key derived from the master secret (via the "handshake master
-secret"). The remainder of the server's handshake messages will be
-encrypted using that key.
+the ephemeral key agreement. The server can now compute a shared
+secret (the ephemeral secret). At this point, the server starts
+encrypting all remaining handshake traffic with the negotiated cipher
+suite using a key derived from the ephemeral secret. The remainder of
+the server's handshake messages will be encrypted using that key.
 
 Following these messages, the server will send an EncryptedExtensions
 message which contains a response to any client's extensions which are
@@ -1484,7 +1483,7 @@ it MAY start sending application data following the Finished, though
 the server has no way of knowing who will be receiving the data. Add this.]]
 
 Once the client receives the ServerKeyShare, it can also compute the
-premaster secret and decrypt the server's remaining handshake messages.
+ephmemeral secret and decrypt the server's remaining handshake messages.
 The client generates its own sending keys based on the premaster secret
 and will encrypt the remainder of its handshake messages using those keys
 and the newly established cipher suite.  If the server has sent a
@@ -1492,13 +1491,13 @@ CertificateRequest message, the client MUST send the Certificate
 message, though it may contain zero certificates.  If the client has
 sent a certificate, a digitally-signed CertificateVerify message is
 sent to explicitly verify possession of the private key in the
-certificate.  Finally, the client sends the Finished message.
+certificate.  Finally, the client sends its own Finished message.
 
-At this point, the handshake is complete, and the
-client and server may exchange application layer data, which is
-protected using a new set of keys derived from both the premaster
-secret and the handshake transcript (see {{I-D.ietf-tls-session-hash}}
-for the security rationale for this.)
+At this point, the handshake is complete, and the client and server
+may exchange application layer data, which is protected using a new
+set of keys derived from both the ephemeral and static secrets and the
+handshake transcript (see {{I-D.ietf-tls-session-hash}} for the
+security rationale for this.)
 
 Application data MUST NOT be sent prior to the Finished message.
 [[TODO: can we make this clearer and more clearly match the text above
@@ -3141,6 +3140,7 @@ In this diagram, PRF indicates an ordinary TLS PRF and PRFH indicates
 a PRF which includes the session hash {{the-session-hash}}.
 
 [[OPEN ISSUE: Can we just make this HKDF?]]
+[[TODO: There must be a better way to draw this diagram]]
 
                                         0
                                         |                         
@@ -3150,13 +3150,21 @@ a PRF which includes the session hash {{the-session-hash}}.
         Early Application               v                         |
           Traffic Keys    <-PRFH-     Auth.                       |
                                      Master                       |
+                                     Secret                       |
                                         |                         |
-                                        |                         | Via
-                                        |                         | Session
-                                       PRF <- Ephemeral Secret    | Cache
-                                        |                         | 
-                                        v                         |
-             Handshake     <-PRFH-    Master                      |
+                0                       |                         | Via
+                |                       |                         | Session
+               PRF  <--  Ephemeral --> PRF                        | Cache
+                |         Secret        |                         |
+                v                       |                         |
+             Handshake                  |                         |
+              Master                    |                         |
+              Secret                    |                         |
+                |                       |                         |
+               PRFH                     |                         |
+                |                       |                         |
+                v                       v                         |
+             Handshake                Master                      |
            Traffic Keys               Secret                      |
                                         |                         |
                                         |                         |
@@ -3168,13 +3176,27 @@ a PRF which includes the session hash {{the-session-hash}}.
                Master
                Secret
 
-First, as soon as the ServerHello has been exchanged,
-SS is determined and is used to compute the authentication master
-secret (AMS), using:
+The key derivation process below is described in the order that values are
+computed for the 1-RTT handshake. In the 0-RTT handshake the AMS is computed
+first in order to derive the Early Application Traffic Keys. However,
+in either case the computations are the same.
+[[OPEN ISSUE: One unattractive feature here is that we don't get to
+encrypt the handshake under PSK even if it's available.]]
+
+Once the ClientKeyShare and ServerKeyShare have been exchanged, EE is
+computed and used to compute the handshake master secret (HMS).
+
+       HMS = PRF(0, "handshake_master_secret", ES)[0..47];
+
+This master secret value is used to compute the record protection keys
+used for the handshake, as described in {{key-calculation}}.
+
+Once the the ServerConfiguration message has been exchanged, SS is computed
+and used to computed the rest of the key schedule, starting with the
+authentication master secret (AMS):
 
        AMS = PRF(0, "authentication_master_secret", SS)[0..47];
 
-If SS is not available, then a 48-byte string of 0s is used instead.
 Once the AMS has been computed, SS SHOULD be deleted from memory
 if possible.
 
@@ -3196,20 +3218,14 @@ shares to compute EE and then the master secret (MS).
 
 If EE is not available, then a 48-byte string of 0s is used.
 
-This master secret value is used for four purposes:
+This master secret value is used for three purposes:
 
-  1. To compute the record protection keys used for the handshake, as
-     described in {{key-calculation}}.
-
-  2. To compute the final application traffic protection keys,
+  1. To compute the final application traffic protection keys,
      as described in {{key-calculation}}.
 
-  3. To compute the resumption master secret (RMS) as described below.
+  2. To compute the resumption master secret (RMS) as described below.
 
-  4. To compute the exporter master secret (EMS) as described below.
-
-The first of these computations can be performed as soon as the MS
-is computed.
+  3. To compute the exporter master secret (EMS) as described below.
 
 If the server does not request client authentication, the rest of
 these computations performed at the time that the server sends its
