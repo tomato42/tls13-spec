@@ -2949,15 +2949,25 @@ verify_data
 :      PRF(finished_secret, finished_label, Hash(handshake_messages))
            [0..verify_data_length-1];
 
-finished_secret
-: The authentication master secret (AMS) for modes where ES != 0
-  and the master secret (MS) for modes where ES = 0.
-
 finished_label
 :       For Finished messages sent by the client, the string
         "client finished".  For Finished messages sent by the server,
         the string "server finished".
 {:br }
+
+For modes where ES != 0 the finished_secret is computed as:
+
+         finished_secret = PRF(AMS, "finished_secret",
+                               SecurityParameters.server_random +
+                               SecurityParameters.client_random)
+
+Otherwise:
+
+         finished_secret = PRF(MS, "finished_secret",
+                               SecurityParameters.server_random +
+                               SecurityParameters.client_random)
+
+
 
 [[OPEN ISSUE: In Hugo's diagram, the secrets used for Finished have
 the session_hash merged in, but since we compute the session hash
@@ -3176,7 +3186,7 @@ First, as soon as the ServerHello has been exchanged,
 SS is determined and is used to compute the authentication master
 secret (AMS), using:
 
-       AMS = PRF(0, SS)[0..47];
+       AMS = PRF(0, "authentication_master_secret", SS)[0..47];
 
 If SS is not available, then a 48-byte string of 0s is used instead.
 Once the AMS has been computed, SS SHOULD be deleted from memory
@@ -3196,7 +3206,7 @@ As soon as the ClientKeyShare and ServerKeyShare messages have been
 exchanged, the client and server each use the unauthenticated key
 shares to copute EE and then the master secret (MS).
 
-       MS = PRF(AMS, EE)
+       MS = PRF(AMS, "master_secret", EE)
 
 If EE is not available, then a 48-byte string of 0s is used.
 
@@ -3228,11 +3238,11 @@ client's empty Certificate message has been sent.
 
 The exporter master secret (EMS) is computed as:
 
-       EMS = PRF(MS, "exporter_master_secret" + session_hash)[0..48]
+       EMS = PRF(MS, "exporter_master_secret", session_hash)[0..48]
 
 In full handshakes a resumption master secret (RMS) is computed as:
 
-       RMS = PRF(MS, "resumption_master_secret" + session_hash)[0..48]
+       RMS = PRF(MS, "resumption_master_secret", session_hash)[0..48]
 
 The session_hash value is a running hash of the handshake at the current
 point, as defined in {{the-session-hash}}
