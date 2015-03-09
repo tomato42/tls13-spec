@@ -1399,7 +1399,7 @@ New Alert values are assigned by IANA as described in {{iana-considerations}}.
 
 ##  Handshake Protocol Overview
 
-[[TODO: Rewrite to handle the new message flow.]]
+[[TODO: Rewrite to handle the new message flows for known configuration.]]
 The cryptographic parameters of the session state are produced by the TLS
 Handshake Protocol, which operates on top of the TLS record layer. When a TLS
 client and server first start communicating, they agree on a protocol version,
@@ -1457,12 +1457,12 @@ extensions the client offered.
 
 The server can then generate its own keying material share and send a
 ServerKeyShare message which contains its share of the parameters for
-the key agreement. The server can now compute the shared secret (the
-premaster secret). At this point, the server starts encrypting all
-remaining handshake traffic with the negotiated cipher suite using a key
-derived from the premaster secret (via the "handshake master secret").
-The remainder of the server's
-handshake messages will be encrypted using that key.
+the key agreement. The server can now compute a shared secret (the
+ephemeral secret). At this point, the server starts encrypting all
+remaining handshake traffic with the negotiated cipher suite using a
+key derived from the master secret (via the "handshake master
+secret"). The remainder of the server's handshake messages will be
+encrypted using that key.
 
 Following these messages, the server will send an EncryptedExtensions
 message which contains a response to any client's extensions which are
@@ -1612,7 +1612,7 @@ connection under the specified session state, it will send a
 ServerHello with the same Session ID value. At this point, both client
 and server MUST proceed directly to sending Finished messages, which
 are protected using handshake keys as described above, computed using
-resumption premaster secret created in the first handshake as the
+resumption master secret created in the first handshake as the
 static secret (no ephemeral secret is used). Once the
 re-establishment is complete, the client and server MAY begin to
 exchange application layer data, which is protected using the
