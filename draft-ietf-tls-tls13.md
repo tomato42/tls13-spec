@@ -1457,7 +1457,7 @@ extensions the client offered.
 
 The server can then generate its own keying material share and send a
 ServerKeyShare message which contains its share of the parameters for
-the key agreement. The server can now compute a shared secret (the
+the ephemeral key agreement. The server can now compute a shared secret (the
 ephemeral secret). At this point, the server starts encrypting all
 remaining handshake traffic with the negotiated cipher suite using a
 key derived from the master secret (via the "handshake master
@@ -1469,14 +1469,16 @@ message which contains a response to any client's extensions which are
 not necessary to establish the Cipher Suite. The server will then send
 its certificate in a Certificate message if it is to be authenticated.
 The server may optionally request a certificate from the client by
-sending a CertificateRequest message at this point.
-Finally, if the server is authenticated, it will send a CertificateVerify
-message which provides a signature over the entire handshake up to
-this point. This serves both to authenticate the server and to establish
-the integrity of the negotiation. Finally, the server sends a Finished
-message which includes an integrity check over the handshake keyed
-by the shared secret and demonstrates that the server and client have
-agreed upon the same keys.
+sending a CertificateRequest message at this point.  If the server is
+authenticated by a certificate, it will then send a
+ServerConfiguration message to provide its semi-static key pair,
+which is combined with the client's ephemeral key to form a static
+secret which is used to authenticate the server.
+Finally, the server sends a Finished message which includes an
+integrity check over the handshake keyed by the static secret and
+demonstrates that the server and client have agreed upon the same
+keys and that the server's ephemeral key is bound to its authenticated
+semi-static key pair.
 [[TODO: If the server is not requesting client authentication,
 it MAY start sending application data following the Finished, though
 the server has no way of knowing who will be receiving the data. Add this.]]
@@ -1510,7 +1512,7 @@ about server-side False Start.]]
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                             {ServerConfiguration}
+                                            {ServerConfiguration*}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1548,7 +1550,7 @@ ClientKeyShare, as shown in Figure 2:
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                             {ServerConfiguration}
+                                            {ServerConfiguration*}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -2800,121 +2802,93 @@ client authentication.
 
 ###  Server Configuration
 
-[TODO: Clean up the messages this comes before and after]
+Meaning of this message:
+> This message is used to convey the server's non-ephemeral DH/ECDHE parameters,
+thus binding them to the long-term key in the server's certificate.
 
 When this message will be sent:
 
-> This message is used to provide a server configuration which
-the client can use in future to skip handshake negotiation and
-(optionally) to allow 0-RTT handshakes. The ServerConfiguration
-message is sent as the last message before the CertificateVerify.
-
-[TODO(ekr@rtfm.com): Should we send this in Update instead?
-Wouldn't that be nice?]
+> This message MUST immediately follow the Certificate message whenever
+the server sends that message.
 
 Structure of this Message:
 
 %%% Hello Messages
-          struct {
-              opaque configuration_id<0..2^16-1>;
-              uint32 expiration_date;
-              NamedGroup group;
-              opaque server_key<1..2^16-1>;
-              opaque zero_rt_id<0..2^16-1>;
-          } ServerConfiguration;
+       struct {
+         uint64 not_before;
+         uint64 not_after;
+         opaque key_identifier<0..2^8-1>;
+         NamedGroup group;
+         opaque server_key<1..2^16-1>;
+       } UnsignedParameters;
 
+not_before
+: The earliest time that the parameters are valid, expressed in seconds
+since the UNIX epoch.
 
-configuration_id
-: The configuration identifier to be used with the known configuration
-extension {{known-configuration-extension}}.
+not_after
+: The last time that the parameters are valid, expressed in seconds
+since the UNIX epoch.
 
 group
 : The group for the long-term DH key that is being established
 for this configuration.
 
-expiration_date
-: The last time when this configuration is expected to be valid
-(in seconds since the Unix epoch).
+key_identifier
+: The key identifier to be used with the known configuration extension
+{{known-configuration-extension}} in known key mode.
+
+group
+: The same meaning as in ClientKeyShare.
 
 server_key
-: The long-term DH key that is being established for this configuration.
+: The DH key that is being used for this connection.
+{:br }
+
+       enum { online(0), offline(1), (255)} ParametersType;
+       
+       struct {
+           UnsignedParameters parameters;
+           ParametersType params_type;
+           digitally-signed struct {
+             UnsignedParameters parameters;
+           };
+           opaque configuration_id<0.2^8-1>;
+           opaque zero_rt_id<0..2^16-1>;
+       } ServerConfiguration;
+
+
+params_type
+: Whether these parameters were signed with an offline or online signature.
+
+configuration_id
+: The configuration identifier to be used with the known configuration
+extension {{known-configuration-extension}}.
 
 zero_rt_id
 : The identifier for the 0-RT context (if any) being established by this
 handshake.
-
 {:br }
 
-The semantics of this message are to establish a shared state between
-the client and server for a configuration of type known_configuration
-with the key specified in key and with the handshake parameters negotiated
-by this handshake. If a non-empty zero_rt_id is established,
-then the client can use a 0-RT handshake as shown in Figure 3.
+The SignedParameters structure MUST be signed by the terminal
+(end-entity) certificate in the server's Certificate message. If the
+signature is of type "offline", then the serialized UnsignedParameters
+structure is signed directly with the context string "TLS 1.3, server
+offline parameters" (note that this does not depend on any handshake
+parameters, so it can be computed offline). If the signature is of
+type "online" then the concatenation of the session_hash and the
+serialized parameters is signed, with a context string of "TLS 1.3,
+server online parameters".
 
+The client MUST verify the signature prior to accepting it and
+terminate the handshake with a fatal decrypt_error alert if the
+signature fails. If the client's idea of the current time is not
+between the not_before and not_after values (inclusive) then the
+client MUST terminate the handshake with a fatal certificate_expired
+alert.
 
-###  Server Certificate Verify
-
-
-When this message will be sent:
-
-> This message is used to provide explicit proof that the server
-possesses the private key corresponding to its certificate.
-certificate and also provides integrity for the handshake up
-to this point. This message is only sent when the server is
-authenticated via a certificate. When sent, it MUST be the
-last server handshake message prior to the Finished.
-
-Structure of this message:
-
-%%% Authentication Messages
-       struct {
-            digitally-signed struct {
-                opaque handshake_messages_hash[hash_length];
-            }
-       } CertificateVerify;
-
-> Here handshake_messages_hash is a digest of all handshake messages
-sent or received, starting at ClientHello and up to, but not
-including, this message, including the type and length fields of the
-handshake messages. This is a digest of the concatenation of all the
-Handshake structures (as defined in {{handshake-protocol}}) exchanged
-thus far. For the PRF defined in Section 5, the digest MUST be the
-Hash used as the basis for the PRF.  Any cipher suite which defines a
-different PRF MUST also define the Hash to use in this
-computation. Note that this is the same running hash that is used in
-the Finished message {{server-finished}}.
-
-> The context string for the signature is "TLS 1.3, server CertificateVerify". A
-hash of the handshake messages is signed rather than the messages themselves
-because the digitally-signed format requires padding and context bytes at the
-beginning of the input. Thus, by signing a digest of the messages, an
-implementation need only maintain one running hash per hash type for
-CertificateVerify, Finished and other messages.
-
->If the client has offered the "signature_algorithms" extension, the signature
-algorithm and hash algorithm MUST be a pair listed in that extension. Note that
-there is a possibility for inconsistencies here. For instance, the client might
-offer DHE_DSS key exchange but omit any DSA pairs from its
-"signature_algorithms" extension. In order to negotiate correctly, the server
-MUST check any candidate cipher suites against the "signature_algorithms"
-extension before selecting them. This is somewhat inelegant but is a compromise
-designed to minimize changes to the original cipher suite design.
-
-> In addition, the hash and signature algorithms MUST be compatible with the key
-in the server's end-entity certificate. RSA keys MAY be used with any permitted
-hash algorithm, subject to restrictions in the certificate, if any.
-
-> Because DSA signatures do not contain any secure indication of hash
-algorithm, there is a risk of hash substitution if multiple hashes may be used
-with any key. Currently, DSA {{DSS}} may only be used with SHA-1. Future
-revisions of DSS {{DSS-3}} are expected to allow the use of other digest
-algorithms with DSA, as well as guidance as to which digest algorithms should
-be used with each key size. In addition, future revisions of {{RFC3280}} may
-specify mechanisms for certificates to indicate which digest algorithms are to
-be used with DSA.
-[[TODO: Update this to deal with DSS-3 and DSS-4.
-https://github.com/tlswg/tls13-spec/issues/59]]
-
+The client MAY cache the server's configuration. 
+[[TODO(ekr@rtfm.com): Write this section.]]
 
 ###  Server Finished
 
@@ -2922,7 +2896,6 @@ When this message will be sent:
 
 > The Server's Finished message is the final message sent by the server
 and indicates that the key exchange and authentication processes were successful.
-
 
 Meaning of this message:
 
@@ -2955,18 +2928,11 @@ finished_label
         the string "server finished".
 {:br }
 
-For modes where ES != 0 the finished_secret is computed as:
+The finished_secret is computed as:
 
          finished_secret = PRF(AMS, "finished_secret",
                                SecurityParameters.server_random +
                                SecurityParameters.client_random)
-
-Otherwise:
-
-         finished_secret = PRF(MS, "finished_secret",
-                               SecurityParameters.server_random +
-                               SecurityParameters.client_random)
-
 
 
 [[OPEN ISSUE: In Hugo's diagram, the secrets used for Finished have
@@ -2997,7 +2963,7 @@ handshake_messages
 
 The value handshake_messages includes all handshake messages starting at
 ClientHello up to, but not including, this Finished message. This may be
-different from handshake_messages in {{server-certificate-verify}} or
+different from handshake_messages in {{server-configuration}} or
 {{client-certificate-verify}}. Also, the handshake_messages
 for the Finished message sent by the client will be different from that for the
 Finished message sent by the server, because the one that is sent second will
@@ -3089,9 +3055,34 @@ When this message will be sent:
 certificate. This message is only sent following a client certificate that has
 signing capability (i.e., all certificates except those containing fixed
 Diffie-Hellman parameters). When sent, it MUST immediately follow the client's
-Certificate message. The contents of the message are computed as described
-in {{server-certificate-verify}}, except that the context string is
-"TLS 1.3, client CertificateVerify".
+Certificate message. 
+
+Structure of this message:
+
+%%% Authentication Messages
+       struct {
+            digitally-signed struct {
+                opaque handshake_messages_hash[hash_length];
+            }
+       } CertificateVerify;
+
+> Here handshake_messages_hash is a digest of all handshake messages
+sent or received, starting at ClientHello and up to, but not
+including, this message, including the type and length fields of the
+handshake messages. This is a digest of the concatenation of all the
+Handshake structures (as defined in {{handshake-protocol}}) exchanged
+thus far. For the PRF defined in Section 5, the digest MUST be the
+Hash used as the basis for the PRF.  Any cipher suite which defines a
+different PRF MUST also define the Hash to use in this
+computation. Note that this is the same running hash that is used in
+the Finished message {{server-finished}}.
+
+> The context string for the signature is "TLS 1.3, client CertificateVerify". A
+hash of the handshake messages is signed rather than the messages themselves
+because the digitally-signed format requires padding and context bytes at the
+beginning of the input. Thus, by signing a digest of the messages, an
+implementation need only maintain one running hash per hash type for
+CertificateVerify, Finished and other messages.
 
 > The hash and signature algorithms used in the signature MUST be one of those
 present in the supported_signature_algorithms field of the CertificateRequest
@@ -3129,11 +3120,8 @@ in the table below:
 ~~~
     Key Exchange            Static Secret (SS)    Ephemeral Secret (ES)
     ------------            ------------------    ---------------------
-    (EC)DHE                                 0          Client ephemeral
-                                                    w/ server ephemeral
-    
     (EC)DHE                   Client ephemeral         Client ephemeral
-    (known server key)            w/ Known Key      w/ server ephemeral
+                              w/ server static      w/ server ephemeral
     
     PSK                         Pre-Shared Key                        0
     
@@ -3153,8 +3141,6 @@ In this diagram, PRF indicates an ordinary TLS PRF and PRFH indicates
 a PRF which includes the session hash {{the-session-hash}}.
 
 [[OPEN ISSUE: Can we just make this HKDF?]]
-[[OPEN ISSUE: In prior TLS, every PRF invocation had a label, but the
-AMS and MS derivations don't have one here. Should we add that?]]
 
                                         0
                                         |                         
@@ -3199,18 +3185,18 @@ AMS is used to compute for three purposes:
   1. As the master secret to compute record protection keys for 0-RTT
      application data.
   
-  3. To compute the Finished message for modes which have
-     ES != 0.
+  3. To compute the key for the Finished message.
+
      
 As soon as the ClientKeyShare and ServerKeyShare messages have been
 exchanged, the client and server each use the unauthenticated key
-shares to copute EE and then the master secret (MS).
+shares to compute EE and then the master secret (MS).
 
        MS = PRF(AMS, "master_secret", EE)
 
 If EE is not available, then a 48-byte string of 0s is used.
 
-This master secret value is used for five purposes:
+This master secret value is used for four purposes:
 
   1. To compute the record protection keys used for the handshake, as
      described in {{key-calculation}}.
@@ -3221,8 +3207,6 @@ This master secret value is used for five purposes:
   3. To compute the resumption master secret (RMS) as described below.
 
   4. To compute the exporter master secret (EMS) as described below.
-
-  5. To compute the Finished message for modes where ES = 0.
 
 The first of these computations can be performed as soon as the MS
 is computed.
@@ -3891,9 +3875,10 @@ expired or been revoked.
 The general goal of the key exchange process is to create a master_secret
 known to the communicating parties and not to attackers (see
 {{computing-the-master-secrets}}). The master_secret is required to generate the
-Finished messages and record protection keys (see {{server-finished}} and
+record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
-that they know the correct master_secret.
+that they know the correct master_secret and bind the ephemeral keys
+to the authentication secret.
 
 ####  Anonymous Key Exchange
 
