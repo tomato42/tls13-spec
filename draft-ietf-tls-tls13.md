@@ -1512,7 +1512,6 @@ about server-side False Start.]]
                                                     {Certificate*}
                                              {CertificateRequest*}
                                             {ServerConfiguration*}
-                                              {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
        {CertificateVerify*}
@@ -1550,7 +1549,6 @@ ClientKeyShare, as shown in Figure 2:
                                                     {Certificate*}
                                              {CertificateRequest*}
                                             {ServerConfiguration*}
-                                              {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
        {CertificateVerify*}
