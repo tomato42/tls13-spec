@@ -737,51 +737,34 @@ For example:
 
        Example1 ex1 = {1, 4};  /* assigns f1 = 1, f2 = 4 */
 
+#  HKDF
 
-# The Pseudorandom Function {#HMAC}
+TLS uses HKDF {{RFC5869}} for key expansion. HKDF is invoked as:
 
-A construction is required to do expansion of secrets into blocks
-of data for the purposes of key generation or validation. This pseudorandom
-function (PRF) takes as input a secret, a seed, and an identifying label and
-produces an output of arbitrary length.
+       HKDF(salt, IKM, info, length)
 
-In this section, we define one PRF, based on HMAC {{RFC2104}}. This PRF with the SHA-256
-hash function is used for all cipher suites defined in this document and in TLS
-documents published prior to this document when TLS 1.2 is negotiated. New
-cipher suites MUST explicitly specify a PRF and, in general, SHOULD use the TLS
-PRF with SHA-256 or a stronger standard hash function.
+salt
+: a salt value
 
-First, we define a data expansion function, P_hash(secret, data), that uses a
-single hash function to expand a secret and seed into an arbitrary quantity of
-output:
+IKM
+: input keying material (e.g., a pre-shared key or a (EC)DH shared
+secret.
 
-       P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
-                              HMAC_hash(secret, A(2) + seed) +
-                              HMAC_hash(secret, A(3) + seed) + ...
+info
+: application context information.
 
-where + indicates concatenation.
+length
+: the desired output length in octets.
+{:br}
 
-A() is defined as:
+In TLS, HKDF is often invoked with an info parameter constructed
+by concatenating a fixed "label" and a variable "seed", as in
 
-       A(0) = seed
-       A(i) = HMAC_hash(secret, A(i-1))
+       "label" + seed
 
-P_hash can be iterated as many times as necessary to produce the required
-quantity of data. For example, if P_SHA256 is being used to create 80 bytes of
-data, it will have to be iterated three times (through A(3)), creating 96 bytes
-of output data; the last 16 bytes of the final iteration will then be
-discarded, leaving 80 bytes of output data.
+The label is represented as an ASCII string, including the terminating
+NUL value and the seed is directly concatenated after the NUL.
 
-TLS's PRF is created by applying P_hash to the secret as:
-
-       PRF(secret, label, seed) = P_<hash>(secret, label + seed)
-
-The label is an ASCII string.  It should be included in the exact
-form it is given without a length byte or trailing null character.
-For example, the label "slithy toves" would be processed by hashing
-the following bytes:
-
-       73 6C 69 74 68 79 20 74 6F 76 65 73
 
 #  The TLS Record Protocol
 
@@ -834,10 +817,9 @@ connection end
 : Whether this entity is considered the "client" or the "server" in
   this connection.
 
-PRF algorithm
+KDF algorithm
 
-: An algorithm used to generate keys from the master secret (see
-  {{HMAC}} and {{key-calculation}}).
+: The hash algorithm used with HKDF {{RFC5869}} to generate keys {{key-calculation}}).
 
 record protection algorithm
 
@@ -872,16 +854,16 @@ These parameters are defined in the presentation language as:
 %%% Security Parameters
        enum { server, client } ConnectionEnd;
 
-       enum { tls_prf_sha256 } PRFAlgorithm;
+       enum { sha256, sha384 } KDFAlgorithm;
 
        enum { aes_gcm } RecordProtAlgorithm;
 
-       /* The algorithms specified in PRFAlgorithm and
+       /* The algorithms specified in KDFAlgorithm and
           RecordProtAlgorithm may be added to. */
 
        struct {
            ConnectionEnd          entity;
-           PRFAlgorithm           prf_algorithm;
+           KDFAlgorithm           kdf_algorithm;
            RecordProtAlgorithm    record_prot_algorithm;
            uint8                  enc_key_length;
            uint8                  block_length;
@@ -1094,19 +1076,16 @@ as an entropy source. For handshake records, this means the
 hs_master_secret. For application data records, this means the
 regular master_secret.
 
-To generate the key material, compute
+To generate the keys, compute:
 
-       key_block = PRF(MS,
-                       "key expansion",
-                       session_hash);
+      client_write_key = HKDF(0, MS, "client write key" + session_hash,
+                              SecurityParameters.enc_key_length)
 
-where MS is the relevant master secret and
-session_hash is the value defined in {{the-session-hash}}.
-The PRF is computed enough times to generate the necessary amount of data for the key_block,
-which is then partitioned as follows:
+      server_write_key = HKDF(0, MS, "server write key" + session_hash,
+                              SecurityParameters.enc_key_length)
 
-       client_write_key[SecurityParameters.enc_key_length]
-       server_write_key[SecurityParameters.enc_key_length]
+Where MS is the relevant master secret and session_hash is the value
+defined in {{the-session-hash}}.
 
 
 #  The TLS Handshaking Protocols
@@ -1128,7 +1107,7 @@ peer certificate
 
 cipher spec
 : Specifies the authentication and key establishment algorithms,
-  the pseudorandom function (PRF) used to generate keying
+  the key derivation function (KDF) used to generate keying
   material, and the record protection algorithm (See
   {{the-security-parameters}} for formal definition.)
 
@@ -1732,7 +1711,7 @@ The cipher suite list, passed from the client to the server in the ClientHello
 message, contains the combinations of cryptographic algorithms supported by the
 client in order of the client's preference (favorite choice first). Each cipher
 suite defines a key exchange algorithm, a record protection algorithm (including
-secret key length) and a PRF. The server will select a cipher
+secret key length) and a KDF. The server will select a cipher
 suite or, if no acceptable choices are presented, return a handshake failure
 alert and close the connection. If the list contains cipher suites the server
 does not recognize, support, or wish to use, the server MUST ignore those
@@ -2903,11 +2882,10 @@ Structure of this message:
 
 
 The verify_data value is computed as follows:
-
                        
-verify_data
-:      PRF(finished_secret, finished_label, Hash(handshake_messages))
-           [0..verify_data_length-1];
+       verify_data = HKDF(0, finished_secret,
+                          finished_label + Hash(handshake_messages),
+                          verify_data_length)
 
 finished_label
 :       For Finished messages sent by the client, the string
@@ -2917,18 +2895,13 @@ finished_label
 
 The finished_secret is computed as:
 
-         finished_secret = PRF(AMS, "finished_secret",
-                               SecurityParameters.server_random +
-                               SecurityParameters.client_random)
+         finished_secret = HKDF(0, AMS, "finished_secret" +
+                                SecurityParameters.server_random +
+                                SecurityParameters.client_random, 48)
 
-
-[[OPEN ISSUE: In Hugo's diagram, the secrets used for Finished have
-the session_hash merged in, but since we compute the session hash
-here, that seems unnecessary. Double check.]]
-
-> Hash denotes a Hash of the handshake messages. For the PRF defined in
-{{HMAC}}, the Hash MUST be the Hash used as the basis for the PRF. Any cipher
-suite which defines a different PRF MUST also define the Hash to use in the
+> Hash denotes a Hash of the handshake messages. When HKDF is used as the
+KDF, then the Hash MUST be the Hash used as the basis for the HKDF. Any cipher
+suite which defines a different KDF MUST also define the Hash to use in the
 Finished computation.
 
 > In previous versions of TLS, the verify_data was always 12 octets long. In
@@ -3058,10 +3031,8 @@ sent or received, starting at ClientHello and up to, but not
 including, this message, including the type and length fields of the
 handshake messages. This is a digest of the concatenation of all the
 Handshake structures (as defined in {{handshake-protocol}}) exchanged
-thus far. For the PRF defined in Section 5, the digest MUST be the
-Hash used as the basis for the PRF.  Any cipher suite which defines a
-different PRF MUST also define the Hash to use in this
-computation. Note that this is the same running hash that is used in
+thus far. The digest MUST be the Hash used as the basis for the KDF.
+Note that this is the same running hash that is used in
 the Finished message {{server-finished}}.
 
 > The context string for the signature is "TLS 1.3, client CertificateVerify". A
@@ -3124,43 +3095,41 @@ below. For the handshake variants with only one secret, a fixed string of 0s
 uniform derivation process for all handshake modes.
 
 The diagram below shows the derivation process modeled on HKDF {{RFC5869}}.
-In this diagram, PRF indicates an ordinary TLS PRF and PRFH indicates
-a PRF which includes the session hash {{the-session-hash}}.
+In this diagram, HKDF indicates an ordinary HKDF invocation and HKDFH indicates
+an HKDF invocation which includes the session hash {{the-session-hash}}.
 
-[[OPEN ISSUE: Can we just make this HKDF?]]
-[[TODO: There must be a better way to draw this diagram]]
 
                                         0
                                         |                         
                                         |                         
-                                       PRF <- Static Secret <-----+
+                                      HKDF <- Static Secret <-----+
                                         |                         |
         Early Application               v                         |
-          Traffic Keys    <-PRFH-     Auth.                       |
+          Traffic Keys    <-HKDFH--   Auth.                       |
                                      Master                       |
                                      Secret                       |
                                         |                         |
                 0                       |                         | Via
                 |                       |                         | Session
-               PRF  <--  Ephemeral --> PRF                        | Cache
+               HKDF <--  Ephemeral --> HKDF                       |
                 |         Secret        |                         |
                 v                       |                         |
              Handshake                  |                         |
               Master                    |                         |
               Secret                    |                         |
                 |                       |                         |
-               PRFH                     |                         |
+              HKDFH                     |                         |
                 |                       |                         |
                 v                       v                         |
              Handshake                Master                      |
            Traffic Keys               Secret                      |
                                         |                         |
                                         |                         |
-            Application    <-PRFH-------+-------PRFH->        Resumption        
+            Application    <-HKDFH------+------HKDFH->        Resumption        
            Traffic Keys                 |                       Master
                                         |                       Secret  
                                         |
-              Exporter     <-PRFH-------+
+              Exporter     <-HKDFH------+
                Master
                Secret
 
@@ -3171,10 +3140,10 @@ in either case the computations are the same.
 [[OPEN ISSUE: One unattractive feature here is that we don't get to
 encrypt the handshake under PSK even if it's available.]]
 
-Once the ClientKeyShare and ServerKeyShare have been exchanged, EE is
+Once the ClientKeyShare and ServerKeyShare have been exchanged, ES is
 computed and used to compute the handshake master secret (HMS).
 
-       HMS = PRF(0, "handshake_master_secret", ES)[0..47];
+       HMS = HKDF(0, ES, "handshake master secret", 48)
 
 This master secret value is used to compute the record protection keys
 used for the handshake, as described in {{key-calculation}}.
@@ -3183,7 +3152,7 @@ Once the the ServerConfiguration message has been exchanged, SS is computed
 and used to computed the rest of the key schedule, starting with the
 authentication master secret (AMS):
 
-       AMS = PRF(0, "authentication_master_secret", SS)[0..47];
+       AMS = HKDF(0, ES, "authentication master secret", 48)
 
 Once the AMS has been computed, SS SHOULD be deleted from memory
 if possible.
@@ -3200,11 +3169,11 @@ AMS is used to compute for three purposes:
      
 As soon as the ClientKeyShare and ServerKeyShare messages have been
 exchanged, the client and server each use the unauthenticated key
-shares to compute EE and then the master secret (MS).
+shares to compute ES and then the master secret (MS).
 
-       MS = PRF(AMS, "master_secret", EE)
+       MS = HKDF(AMS, ES, "master secret", 48)
 
-If EE is not available, then a 48-byte string of 0s is used.
+If ES is not available, then a 32-byte string of 0s is used.
 
 This master secret value is used for three purposes:
 
@@ -3226,11 +3195,11 @@ client's empty Certificate message has been sent.
 
 The exporter master secret (EMS) is computed as:
 
-       EMS = PRF(MS, "exporter_master_secret", session_hash)[0..48]
+       EMS = HKDF(0, MS, "exporter master secret" + session_hash, 48)
 
 In full handshakes a resumption master secret (RMS) is computed as:
 
-       RMS = PRF(MS, "resumption_master_secret", session_hash)[0..48]
+       RMS = HKDF(0, MS, "resumption master secret" + session_hash, 48)
 
 The session_hash value is a running hash of the handshake at the current
 point, as defined in {{the-session-hash}}
@@ -3269,7 +3238,7 @@ first flight, as it covers the client's Certificate and CertificateVerify.
 A conventional Diffie-Hellman computation is performed. The negotiated key (Z)
 is used as the shared_secret, and is converted into the master secrets, as
 specified above. Leading bytes of Z that contain all zero bits are stripped
-before it is used as the input to the PRF.
+before it is used as the input to the key computations.
 
 ### Elliptic Curve Diffie-Hellman
 
@@ -3453,12 +3422,12 @@ higher computational and communicational cost than anonymous key exchange, it
 may be in the interest of interoperability not to disable non-anonymous key
 exchange when the application layer is allowing anonymous key exchange.
 
-The PRFs SHALL be as follows:
+The KDFs SHALL be as follows:
 
-   o  For cipher suites ending with _SHA256, the PRF is the TLS PRF
+   o  For cipher suites ending with _SHA256, the KDF is HKDF
       with SHA-256 as the hash function.
 
-   o  For cipher suites ending with _SHA384, the PRF is the TLS PRF
+   o  For cipher suites ending with _SHA384, the KDF is HKDF
       with SHA-384 as the hash function.
 
 New cipher suite values are been assigned by IANA as described in
@@ -3635,7 +3604,7 @@ Transport Layer Security (TLS)
 # Cipher Suite Definitions
 
     Cipher Suite                          Key        Record
-                                          Exchange   Protection   PRF
+                                          Exchange   Protection   KDF
 
     TLS_NULL_WITH_NULL_NULL               NULL       NULL_NULL    N/A
     TLS_DHE_RSA_WITH_AES_128_GCM_SHA256   DHE_RSA    AES_128_GCM  SHA256
