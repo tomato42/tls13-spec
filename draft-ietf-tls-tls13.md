@@ -2799,6 +2799,7 @@ since the UNIX epoch. If this value is 0, then the parameters are only
 valid for this connection.
 
 key_identifier
+
 : The key identifier to be used with the known configuration extension
 {{known-configuration-extension}} in known key mode.
 
