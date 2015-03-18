@@ -1480,7 +1480,7 @@ about server-side False Start.]]
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                            {ServerParameters*}
+                                               {ServerParameters*}
                                  <--------              {Finished}
        {Certificate*}
        {CertificateVerify*}
@@ -1517,7 +1517,7 @@ ClientKeyShare, as shown in Figure 2:
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                            {ServerParameters*}
+                                               {ServerParameters*}
                                  <--------              {Finished}
        {Certificate*}
        {CertificateVerify*}
@@ -2386,7 +2386,7 @@ behave in one of three ways:
   handshakes but that this handshake will not be 0-RT. Any
   0-RT data sent in the first flight is ignored as in the previous
   case. The server MUST then establish a 0-RT context as
-  described in {{server-configuration}}.
+  described in {{server-parameters}}.
 
 - Echo the clients non-empty context identifier, indicating a
   successful agreement on a 0-RT handshake. In this case, the
@@ -2798,34 +2798,33 @@ not_after
 since the UNIX epoch. If this value is 0, then the parameters are only
 valid for this connection.
 
-group
-: The group for the long-term DH key that is being established
-for this configuration.
 
 key_identifier
 : The key identifier to be used with the known configuration extension
 {{known-configuration-extension}} in known key mode.
 
 group
-: The same meaning as in ClientKeyShare.
+: The same meaning as in ServerKeyShare. This MUST be the same group
+as used for that message.
 
 server_key
-: The DH key that is being used for this connection.
+: The server's DH key share.
 {:br }
 
-       enum { online(0), offline(1), (255)} ParametersType;
+       enum { online(0), (255)} ParametersType;
        
        struct {
            UnsignedParameters parameters;
            ParametersType params_type;
            digitally-signed struct {
              UnsignedParameters parameters;
+             opaque session_hash[Hash.length];
            };
            opaque zero_rt_id<0..2^16-1>;
        } ServerParameters;
 
 params_type
-: Whether these parameters were signed with an offline or online signature.
+: The type of parameters. Currently this MUST be "online".
 
 zero_rt_id
 : The identifier for the 0-RT context (if any) being established by this
@@ -2833,24 +2832,35 @@ handshake.
 {:br }
 
 The SignedParameters structure MUST be signed by the terminal
-(end-entity) certificate in the server's Certificate message. If the
-signature is of type "offline", then the serialized UnsignedParameters
-structure is signed directly with the context string "TLS 1.3, server
-offline configuration" (note that this does not depend on any handshake
-parameters, so it can be computed offline). If the signature is of
-type "online" then the concatenation of the session_hash prior to
-this message is signed, with a context string of "TLS 1.3,
-server online parameters". 
+(end-entity) certificate in the server's Certificate message. 
+The signature valus is computed as the concatentation of the
+serialized UnsignedParameters type and the session hash.
+The context string for this signature is "TLS 1.3, server parameters". 
 
 The client MUST verify the signature prior to accepting it and
 terminate the handshake with a fatal decrypt_error alert if the
 signature fails. If the client's idea of the current time is not
-between the not_before and not_after values (inclusive) then the
-client MUST terminate the handshake with a fatal certificate_expired
-alert.
+between the not_before and not_after values (inclusive) and those
+values are non-zero, then the client MUST terminate the handshake with
+a fatal certificate_expired alert.
 
-The client MAY cache the server's configuration. 
-[[TODO(ekr@rtfm.com): Write this section.]]
+If the not_before and not_after values are nonzero, then the client
+MAY cache the SignedParameters value for future use
+{{known-configuration-extension}} during the lifespan indicated by
+those values.
+
+It is explicitly permitted for the (EC)DH key in this message to be
+the same as the key used in the server's ServerKeyShare message. In
+that case, the server MUST use a fresh DH ephemeral value for each
+connection (otherwise PFS is lost) and MUST set the not_before and
+not_after values to 0 so that the key will not be cached. This
+server-side behavior allows the server to only do one (EC)DH variable
+base operation, which is a significant performance improvement.  If
+the client wishes to optimize for this case, it MAY compare the two
+key share values and cache the (EC)DH computation if they are
+equal. Alternately, clients may simply perform the (EC)DH computations
+independently. In either case, the derived secrets will be the same.
+
 
 ###  Server Finished
 
@@ -2919,7 +2929,7 @@ handshake_messages
 
 The value handshake_messages includes all handshake messages starting at
 ClientHello up to, but not including, this Finished message. This may be
-different from handshake_messages in {{server-configuration}} or
+different from handshake_messages in {{server-parameters}} or
 {{client-certificate-verify}}. Also, the handshake_messages
 for the Finished message sent by the client will be different from that for the
 Finished message sent by the server, because the one that is sent second will
