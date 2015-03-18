@@ -1439,7 +1439,7 @@ its certificate in a Certificate message if it is to be authenticated.
 The server may optionally request a certificate from the client by
 sending a CertificateRequest message at this point.  If the server is
 authenticated by a certificate, it will then send a
-ServerConfiguration message to provide its semi-static key pair,
+ServerParameters message to provide its semi-static key pair,
 which is combined with the client's ephemeral key to form a static
 secret which is used to authenticate the server.
 Finally, the server sends a Finished message which includes an
@@ -1480,7 +1480,7 @@ about server-side False Start.]]
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                            {ServerConfiguration*}
+                                            {ServerParameters*}
                                  <--------              {Finished}
        {Certificate*}
        {CertificateVerify*}
@@ -1517,7 +1517,7 @@ ClientKeyShare, as shown in Figure 2:
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                            {ServerConfiguration*}
+                                            {ServerParameters*}
                                  <--------              {Finished}
        {Certificate*}
        {CertificateVerify*}
@@ -1633,7 +1633,7 @@ processed and transmitted as specified by the current active session state.
                case server_key_share:    ServerKeyShare;
                case certificate:         Certificate;
                case certificate_request: CertificateRequest;
-               case server_configuration:ServerConfiguration;
+               case server_configuration:ServerParameters;
                case certificate_verify:  CertificateVerify;
                case finished:            Finished;
            } body;
@@ -2297,7 +2297,7 @@ communicate the PSK which the client desires to use.
             opaque identifier<2 .. 2^16-1>;
           } KnownConfigurationExtension
 
-key_identifier
+identifier
 : An opaque label for the configuration in question.
 
 {:br }
@@ -2766,7 +2766,7 @@ Note: It is a fatal handshake_failure alert for an anonymous server to request
 client authentication.
 
 
-###  Server Configuration
+###  Server Parameters
 
 Meaning of this message:
 > This message is used to convey the server's non-ephemeral DH/ECDHE parameters,
@@ -2790,11 +2790,13 @@ Structure of this Message:
 
 not_before
 : The earliest time that the parameters are valid, expressed in seconds
-since the UNIX epoch.
+since the UNIX epoch. If this value is 0, then the parameters are only
+valid for this connection.
 
 not_after
 : The last time that the parameters are valid, expressed in seconds
-since the UNIX epoch.
+since the UNIX epoch. If this value is 0, then the parameters are only
+valid for this connection.
 
 group
 : The group for the long-term DH key that is being established
@@ -2819,17 +2821,11 @@ server_key
            digitally-signed struct {
              UnsignedParameters parameters;
            };
-           opaque configuration_id<0.2^8-1>;
            opaque zero_rt_id<0..2^16-1>;
-       } ServerConfiguration;
-
+       } ServerParameters;
 
 params_type
 : Whether these parameters were signed with an offline or online signature.
-
-configuration_id
-: The configuration identifier to be used with the known configuration
-extension {{known-configuration-extension}}.
 
 zero_rt_id
 : The identifier for the 0-RT context (if any) being established by this
@@ -2840,11 +2836,11 @@ The SignedParameters structure MUST be signed by the terminal
 (end-entity) certificate in the server's Certificate message. If the
 signature is of type "offline", then the serialized UnsignedParameters
 structure is signed directly with the context string "TLS 1.3, server
-offline parameters" (note that this does not depend on any handshake
+offline configuration" (note that this does not depend on any handshake
 parameters, so it can be computed offline). If the signature is of
-type "online" then the concatenation of the session_hash and the
-serialized parameters is signed, with a context string of "TLS 1.3,
-server online parameters".
+type "online" then the concatenation of the session_hash prior to
+this message is signed, with a context string of "TLS 1.3,
+server online parameters". 
 
 The client MUST verify the signature prior to accepting it and
 terminate the handshake with a fatal decrypt_error alert if the
@@ -3148,7 +3144,7 @@ computed and used to compute the handshake master secret (HMS).
 This master secret value is used to compute the record protection keys
 used for the handshake, as described in {{key-calculation}}.
 
-Once the the ServerConfiguration message has been exchanged, SS is computed
+Once the the ServerParameters message has been exchanged, SS is computed
 and used to computed the rest of the key schedule, starting with the
 authentication master secret (AMS):
 
