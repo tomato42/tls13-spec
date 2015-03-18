@@ -2798,7 +2798,6 @@ not_after
 since the UNIX epoch. If this value is 0, then the parameters are only
 valid for this connection.
 
-
 key_identifier
 : The key identifier to be used with the known configuration extension
 {{known-configuration-extension}} in known key mode.
@@ -2828,7 +2827,7 @@ params_type
 
 zero_rt_id
 : The identifier for the 0-RT context (if any) being established by this
-handshake.
+  handshake.
 {:br }
 
 The SignedParameters structure MUST be signed by the terminal
