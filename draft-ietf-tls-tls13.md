@@ -882,8 +882,10 @@ These parameters are defined in the presentation language as:
            RecordProtAlgorithm    record_prot_algorithm;
            uint8                  enc_key_length;
            uint8                  block_length;
-           opaque                 hs_master_secret[48];
-           opaque                 master_secret[48];
+           opaque                 auth_master_secret[kdf_length];
+           opaque                 hs_master_secret[kdf_length];
+           opaque                 master_secret[kdf_length];
+           opaque                 exporter_master_secret[kdf_length];
            opaque                 client_random[32];
            opaque                 server_random[32];
        } SecurityParameters;
@@ -1086,18 +1088,18 @@ that order. Unused values are empty.
 
 When keys are generated, the current master secret (MS) is used
 as an entropy source. For handshake records, this means the
-hs_master_secret. For application data records, this means the
-regular master_secret.
+handshake master secret. For application data records, this means the
+regular master secret.
 
 To generate the keys, compute:
 
-      client_write_key = HKDF-Expand(MS, "client write key" + session_hash,
+      client_write_key = HKDF-Expand(Secret, "client write key" + session_hash,
                                      SecurityParameters.enc_key_length)
 
-      server_write_key = HKDF-Expand(MS, "server write key" + session_hash,
+      server_write_key = HKDF-Expand(Secret, "server write key" + session_hash,
                                      SecurityParameters.enc_key_length)
 
-Where MS is the relevant master secret and session_hash is the value
+Where Secret is the relevant master secret and session_hash is the value
 defined in {{the-session-hash}}.
 
 
@@ -2672,7 +2674,7 @@ Meaning of this message:
 correct. Once a side has sent its Finished message and received and
 validated the Finished message from its peer, it may begin to send and
 receive application data over the connection. This data will be
-protected under keys derived from the hs_master_secret (see
+protected under keys derived from the handshake master secret (see
 {{cryptographic-computations}}.
 
 Structure of this message:
@@ -3013,11 +3015,12 @@ exception of the Finished message, including the type and length
 fields of the handshake messages. This is the concatenation of all the
 exchanged Handshake structures.
 
-For concreteness, at the point where the handshake master secret
-is derived, the session hash includes the ClientHello, ClientKeyShare,
+For concreteness, at the point where the handshake traffic keys
+are derived, the session hash includes the ClientHello, ClientKeyShare,
 ServerHello, and ServerKeyShare, and HelloRetryRequest (if any)
 (though see [https://github.com/tlswg/tls13-spec/issues/104]).
-At the point where the master secret is derived, it includes every
+At the point where the finished secret, application traffic keys, exporter master
+secret, and resuption master secret are derived, it includes every
 handshake message, with the exception of the Finished messages.
 Note that if client authentication is not used, then the session
 hash is complete at the point when the server has sent its first
@@ -3617,12 +3620,12 @@ clients must supply an acceptable certificate to the server. Each party is
 responsible for verifying that the other's certificate is valid and has not
 expired or been revoked.
 
-The general goal of the key exchange process is to create a master_secret
+The general goal of the key exchange process is to create a master secret
 known to the communicating parties and not to attackers (see
-{{computing-the-master-secrets}}). The master_secret is required to generate the
+{{computing-the-master-secrets}}). The master secret is required to generate the
 record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
-that they know the correct master_secret and bind the ephemeral keys
+that they know the correct master secret and bind the ephemeral keys
 to the authentication secret.
 
 ####  HKDF
@@ -3647,7 +3650,7 @@ Completely anonymous sessions can be established using Diffie-Hellman for key
 exchange. The server's public parameters are contained in the server key
 share message, and the client's are sent in the client key share message.
 Eavesdroppers who do not know the private values should not be able to find the
-Diffie-Hellman result (i.e., the pre_master_secret).
+Diffie-Hellman result (i.e., the premaster secret).
 
 Warning: Completely anonymous connections only provide protection against
 passive eavesdropping. Unless an independent tamper-proof channel is used to
@@ -3699,30 +3702,32 @@ select different encryption algorithms than they would normally choose.
 For this attack, an attacker must actively change one or more handshake
 messages. If this occurs, the client and server will compute different values
 for the handshake message hashes. As a result, the parties will not accept each
-others' Finished messages. Without the master_secret, the attacker cannot
+others' Finished messages. Without the master secret, the attacker cannot
 repair the Finished messages, so the attack will be discovered.
 
+{::comment}
 ###  Resuming Sessions
 
 When a connection is established by resuming a session, new ClientHello.random
-and ServerHello.random values are hashed with the session's master_secret.
-Provided that the master_secret has not been compromised and that the secure
+and ServerHello.random values are hashed with the session's master secret.
+Provided that the master secret has not been compromised and that the secure
 hash operations used to produce the record protection kayes are secure,
 the connection should be secure and effectively independent from previous
 connections. Attackers cannot use known keys to
-compromise the master_secret without breaking the secure hash operations.
+compromise the master secret without breaking the secure hash operations.
 
 Sessions cannot be resumed unless both the client and server agree. If either
 party suspects that the session may have been compromised, or that certificates
 may have expired or been revoked, it should force a full handshake. An upper
 limit of 24 hours is suggested for session ID lifetimes, since an attacker who
-obtains a master_secret may be able to impersonate the compromised party until
+obtains a master secret may be able to impersonate the compromised party until
 the corresponding session ID is retired. Applications that may be run in
 relatively insecure environments should not write session IDs to stable storage.
+{:/comment}
 
 ## Protecting Application Data
 
-The master_secret is hashed with the ClientHello.random and ServerHello.random
+The master secret is hashed with the ClientHello.random and ServerHello.random
 to produce unique record protection secrets for each connection.
 
 Outgoing data is protected using an AEAD algorithm before transmission. The
