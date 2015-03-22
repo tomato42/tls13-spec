@@ -944,7 +944,7 @@ message MAY be fragmented across several records).
 
        enum {
            reserved(20), alert(21), handshake(22),
-           application_data(23), early_handshake(25),
+           application_data(23),
            (255)
        } ContentType;
 
@@ -1467,7 +1467,7 @@ it MAY start sending application data following the Finished, though
 the server has no way of knowing who will be receiving the data. Add this.]]
 
 Once the client receives the ServerKeyShare, it can also compute the
-ephmemeral secret and decrypt the server's remaining handshake messages.
+ephemeral secret and decrypt the server's remaining handshake messages.
 The client generates its own sending keys based on the ephemeral secret
 and will encrypt the remainder of its handshake messages using those keys
 and the newly established cipher suite.  If the server has sent a
@@ -1604,7 +1604,7 @@ processed and transmitted as specified by the current active session state.
            reserved(0), client_hello(1), server_hello(2),
            client_key_share(5), hello_retry_request(6),
            server_key_share(7), certificate(11), reserved(12),
-           certificate_request(13), server_configuration(14),
+           certificate_request(13), server_parameters(14),
            certificate_verify(15), reserved(16), finished(20), (255)
        } HandshakeType;
 
@@ -1619,7 +1619,7 @@ processed and transmitted as specified by the current active session state.
                case server_key_share:    ServerKeyShare;
                case certificate:         Certificate;
                case certificate_request: CertificateRequest;
-               case server_configuration:ServerParameters;
+               case server_parameters:   ServerParameters;
                case certificate_verify:  CertificateVerify;
                case finished:            Finished;
            } body;
@@ -2312,7 +2312,7 @@ with the selected cipher suite and group parameters.
 Meaning of this message:
 
 > This message conveys cryptographic information to allow the client to
-compute a shared secret secret: a Diffie-Hellman public key with which the
+compute a shared secret: a Diffie-Hellman public key with which the
 client can complete a key exchange (with the result being the shared secret)
 or a public key for some other algorithm.
 
@@ -2378,7 +2378,7 @@ When this message will be sent:
 > The server MUST send a Certificate message whenever the agreed-upon
 key exchange method uses certificates for authentication (this
 includes all key exchange methods defined in this document except
-DH_anon), and unless the KnownKeyExtension is used. This message will
+DH_anon). This message will
 always immediately follow either the EncryptedExtensions message if
 one is sent or the ServerKeyShare message.
 
@@ -2567,6 +2567,7 @@ client authentication.
 ###  Server Parameters
 
 Meaning of this message:
+
 > This message is used to convey the server's non-ephemeral DH/ECDHE parameters,
 thus binding them to the long-term key in the server's certificate.
 
@@ -2675,7 +2676,7 @@ correct. Once a side has sent its Finished message and received and
 validated the Finished message from its peer, it may begin to send and
 receive application data over the connection. This data will be
 protected under keys derived from the handshake master secret (see
-{{cryptographic-computations}}.
+{{cryptographic-computations}}).
 
 Structure of this message:
 
@@ -2977,7 +2978,7 @@ This master secret value is used for three purposes:
   3. To compute the exporter master secret (EMS) as described below.
 
 If the server does not request client authentication, the rest of
-these computations performed at the time that the server sends its
+these computations can be performed at the time that the server sends its
 Finished, thus allowing the server to send traffic on its first flight
 (see [TODO] for security considerations on this practice.)  If the
 server requests client authentication, these computations can be
@@ -3705,7 +3706,6 @@ for the handshake message hashes. As a result, the parties will not accept each
 others' Finished messages. Without the master secret, the attacker cannot
 repair the Finished messages, so the attack will be discovered.
 
-{::comment}
 ###  Resuming Sessions
 
 When a connection is established by resuming a session, new ClientHello.random
@@ -3723,7 +3723,6 @@ limit of 24 hours is suggested for session ID lifetimes, since an attacker who
 obtains a master secret may be able to impersonate the compromised party until
 the corresponding session ID is retired. Applications that may be run in
 relatively insecure environments should not write session IDs to stable storage.
-{:/comment}
 
 ## Protecting Application Data
 
