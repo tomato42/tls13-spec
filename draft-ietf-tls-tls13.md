@@ -3154,104 +3154,35 @@ The diagram below shows the derivation process modeled on HKDF {{RFC5869}}.
 In this diagram, PRF indicates an ordinary TLS PRF and PRFH indicates
 a PRF which includes the session hash {{the-session-hash}}.
 
-[[OPEN ISSUE: Can we just make this HKDF?]]
-[[OPEN ISSUE: In prior TLS, every PRF invocation had a label, but the
-AMS and MS derivations don't have one here. Should we add that?]]
 
-                                        0
-                                        |                         
-                                        |                         
-                                       PRF <- Static Secret <-----+
-                                        |                         |
-        Early Application               v                         |
-          Traffic Keys    <-PRFH-     Auth.                       |
-                                     Master                       |
-                                        |                         |
-                                        |                         | Via
-                                        |                         | Session
-                                       PRF <- Ephemeral Secret    | Cache
-                                        |                         | 
-                                        v                         |
-             Handshake     <-PRFH-    Master                      |
-           Traffic Keys               Secret                      |
-                                        |                         |
-                                        |                         |
-            Application    <-PRFH-------+-------PRFH->        Resumption        
-           Traffic Keys                 |                       Master
-                                        |                       Secret  
-                                        |
-              Exporter     <-PRFH-------+
-               Master
-               Secret
+                   0                          0
+                   |                          |
+Ephemeral --> HKDF-Extract              HKDF-Extract  <-- Static ---+
+  Secret           |                          |           Secret    |
+                   v                          v                     |
+               Handshake             +- Authentication              |
+                 Master              |      Master                  |
+                 Secret              |      Secret                  |
+                   |                 |        |                     |
+                   |                 |        |                     |
+Handshake  <-HKDFH-+-HKDFH--->  HKDF-Extract  +-HKDFH-> 0RTT        |
+Traffic                              |        |         Traffic     |
+Keys                                 |        |         Keys        |  
+                                     |        |                     |
+                                     v        +-HKDFH-> Finished    |
+                                   Master               Keys        |
+                                   Secret                           |
+                                     |                              |
+                                     |                              |
+          Application   <-HKDFH------+------HKDFH->        Resumption        
+        Traffic Keys                 |                         Master
+                                     |                         Secret  
+                                     |
+           Exporter     <-HKDFH------+
+            Master
+            Secret
 
-First, as soon as the ServerHello has been exchanged,
-SS is determined and is used to compute the authentication master
-secret (AMS), using:
-
-       AMS = PRF(0, "authentication_master_secret", SS)[0..47];
-
-If SS is not available, then a 48-byte string of 0s is used instead.
-Once the AMS has been computed, SS SHOULD be deleted from memory
-if possible.
-
-AMS is used to compute for three purposes:
-
-  1. To compute the Master Secret.
-
-  1. As the master secret to compute record protection keys for 0-RTT
-     application data.
-  
-  3. To compute the Finished message for modes which have
-     ES != 0.
-     
-As soon as the ClientKeyShare and ServerKeyShare messages have been
-exchanged, the client and server each use the unauthenticated key
-shares to copute EE and then the master secret (MS).
-
-       MS = PRF(AMS, "master_secret", EE)
-
-If EE is not available, then a 48-byte string of 0s is used.
-
-This master secret value is used for five purposes:
-
-  1. To compute the record protection keys used for the handshake, as
-     described in {{key-calculation}}.
-
-  2. To compute the final application traffic protection keys,
-     as described in {{key-calculation}}.
-
-  3. To compute the resumption master secret (RMS) as described below.
-
-  4. To compute the exporter master secret (EMS) as described below.
-
-  5. To compute the Finished message for modes where ES = 0.
-
-The first of these computations can be performed as soon as the MS
-is computed.
-
-If the server does not request client authentication, the rest of
-these computations performed at the time that the server sends its
-Finished, thus allowing the server to send traffic on its first flight
-(see [TODO] for security considerations on this practice.)  If the
-server requests client authentication, these computations can be
-computed after the client's Certificate and CertificateVerify have
-been sent, or, if the client refuses client authentication, after the
-client's empty Certificate message has been sent.
-
-The exporter master secret (EMS) is computed as:
-
-       EMS = PRF(MS, "exporter_master_secret", session_hash)[0..48]
-
-In full handshakes a resumption master secret (RMS) is computed as:
-
-       RMS = PRF(MS, "resumption_master_secret", session_hash)[0..48]
-
-The session_hash value is a running hash of the handshake at the current
-point, as defined in {{the-session-hash}}
-
-All master secrets are always exactly 48 bytes in length. The length
-of SS and ES will vary depending on key exchange method.
-
+[TODO: Fill in text]
 
 ###  The Session Hash
 
