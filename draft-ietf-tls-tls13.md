@@ -3155,34 +3155,29 @@ In this diagram, PRF indicates an ordinary TLS PRF and PRFH indicates
 a PRF which includes the session hash {{the-session-hash}}.
 
 
-                   0                          0
-                   |                          |
-Ephemeral --> HKDF-Extract              HKDF-Extract  <-- Static ---+
-  Secret           |                          |           Secret    |
-                   v                          v                     |
-               Handshake             +- Authentication              |
-                 Master              |      Master                  |
-                 Secret              |      Secret                  |
-                   |                 |        |                     |
-                   |                 |        |                     |
-Handshake  <-HKDFH-+-HKDFH--->  HKDF-Extract  +-HKDFH-> 0RTT        |
-Traffic                              |        |         Traffic     |
-Keys                                 |        |         Keys        |  
-                                     |        |                     |
-                                     v        +-HKDFH-> Finished    |
-                                   Master               Keys        |
-                                   Secret                           |
+                   0                           0
+                   |                           |
+Ephemeral ---->  HKDF-H                     HKDF-H    <-- Static ---+
+  Secret           |                           |          Secret    |
+                   |                           |                    |
+Handshake  <-------+---------+        +--------+-------> 0RTT       |
+Traffic                      |        |        |         Traffic    |
+Keys                         |        |        |         Keys       |  
+                             |        |        |                    |
+                             |        v        +-------> Finished   |
+                             +----> HKDF-H               Keys       |
                                      |                              |
                                      |                              |
-          Application   <-HKDFH------+------HKDFH->        Resumption        
-        Traffic Keys                 |                         Master
-                                     |                         Secret  
+          Application   <-HKDF-H-----+-----------------> Resumption |
+        Traffic Keys                 |                       Master-+
+                                     |                       Secret  
                                      |
-           Exporter     <-HKDFH------+
+           Exporter     <-HKDF-H-----+
             Master
             Secret
 
-[TODO: Fill in text]
+
+The key derivation
 
 ###  The Session Hash
 
