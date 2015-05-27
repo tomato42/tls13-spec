@@ -3119,30 +3119,41 @@ the client and server random values. The authentication, key
 agreement, and record protection algorithms are determined by the
 cipher_suite selected by the server and revealed in the ServerHello
 message. The random values are exchanged in the hello messages. All
-that remains is to calculate the master secret.
+that remains is to calculate the key schedule.
+
 
 ##  Computing the Master Secrets
 
 The TLS handshake establishes secret keying material which is then used
-to protect traffic. Depending on the handshake parameters, this keying
-material may be derived from either one or two shared secrets, as described
-in the table below:
+to protect traffic. This keying material is derived from two input
+secret values:
 
 ~~~
+Ephemeral Secret (ES): A secret which is derived from fresh (EC)DHE
+   shares for this connection. Keying material derived from ES is
+   intended to be forward secure (with the exception of pre-shared
+   key only modes).
+
+Static Secret (SS): A secret which may be derived from static or
+   semi-static keying material, such as a pre-shared key or the
+   server's semi-static (EC)DH share.
+
+The exact source of each of these secrets depends on the operational
+mode (DHE, ECDHE, PSK, etc.) and is summarized in the table below:
+
+
     Key Exchange            Static Secret (SS)    Ephemeral Secret (ES)
     ------------            ------------------    ---------------------
-    (EC)DHE                                 0          Client ephemeral
-                                                    w/ server ephemeral
+    (EC)DHE                   Client ephemeral         Client ephemeral
+                           w/ server ephemeral      w/ server ephemeral
     
     (EC)DHE                   Client ephemeral         Client ephemeral
     (known server key)            w/ Known Key      w/ server ephemeral
     
-    PSK                         Pre-Shared Key                        0
+    PSK                         Pre-Shared Key           Pre-shared key
     
     PSK + (EC)DHE               Pre-Shared Key         Client ephemeral
                                                     w/ server ephemeral
-    
-    Resumption                  Resumption PMS                        0
 ~~~
 
 These shared secret values are used to generate master secret values as shown
@@ -3150,10 +3161,7 @@ below. For the handshake variants with only one secret, a fixed string of 0s
 (indicated by 0 in the table above) is used instead, allowing for a
 uniform derivation process for all handshake modes.
 
-The diagram below shows the derivation process modeled on HKDF {{RFC5869}}.
-In this diagram, PRF indicates an ordinary TLS PRF and PRFH indicates
-a PRF which includes the session hash {{the-session-hash}}.
-
+The diagram below shows the derivation process.
 
                    0                           0
                    |                           |
@@ -3177,7 +3185,10 @@ Keys                         |        |        |         Keys       |
             Secret
 
 
-The key derivation
+The key derivation process is as follows:
+
+[TODO]    
+
 
 ###  The Session Hash
 
