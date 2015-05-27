@@ -1424,7 +1424,6 @@ New Alert values are assigned by IANA as described in {{iana-considerations}}.
 
 ##  Handshake Protocol Overview
 
-[[TODO: Rewrite to handle the new message flows for known configuration.]]
 The cryptographic parameters of the session state are produced by the TLS
 Handshake Protocol, which operates on top of the TLS record layer. When a TLS
 client and server first start communicating, they agree on a protocol version,
@@ -1465,67 +1464,8 @@ its promised level of security: if you negotiate AES-GCM {{GCM}} with
 a 255-bit ECDHE key exchange with a host whose certificate
 chain you have verified, you can expect that to be reasonably secure.
 
-These goals are achieved by the handshake protocol, which can be
-summarized as follows: The client sends a ClientHello message which
-contains a random nonce (ClientHello.random), its preferences for
-Protocol Version, Cipher Suite, and a variety of extensions. In
-the same flight, it sends a ClientKeyShare message which contains its
-share of the parameters for key agreement for some set of expected
-server parameters (DHE/ECDHE groups, etc.).
+The basic TLS Handshake is shown in Figure 1, shown below:
 
-If the client has provided a ClientKeyShare with an appropriate set of
-keying material, the server responds to the ClientHello with a ServerHello
-message. The ServerHello contains the server's nonce
-(ServerHello.random), the server's choice of the Protocol Version,
-Session ID and Cipher Suite, and the server's response to the
-extensions the client offered.
-
-The server can then generate its own keying material share and send a
-ServerKeyShare message which contains its share of the parameters for
-the key agreement. The server can now compute a shared secret (the
-ephemeral secret). At this point, the server starts encrypting all
-remaining handshake traffic with the negotiated cipher suite using a
-key derived from the master secret (via the "handshake master
-secret"). The remainder of the server's handshake messages will be
-encrypted using that key.
-
-Following these messages, the server will send an EncryptedExtensions
-message which contains a response to any client's extensions which are
-not necessary to establish the Cipher Suite. The server will then send
-its certificate in a Certificate message if it is to be authenticated.
-The server may optionally request a certificate from the client by
-sending a CertificateRequest message at this point.
-Finally, if the server is authenticated, it will send a CertificateVerify
-message which provides a signature over the entire handshake up to
-this point. This serves both to authenticate the server and to establish
-the integrity of the negotiation. Finally, the server sends a Finished
-message which includes an integrity check over the handshake keyed
-by the shared secret and demonstrates that the server and client have
-agreed upon the same keys.
-[[TODO: If the server is not requesting client authentication,
-it MAY start sending application data following the Finished, though
-the server has no way of knowing who will be receiving the data. Add this.]]
-
-Once the client receives the ServerKeyShare, it can also compute the
-premaster secret and decrypt the server's remaining handshake messages.
-The client generates its own sending keys based on the premaster secret
-and will encrypt the remainder of its handshake messages using those keys
-and the newly established cipher suite.  If the server has sent a
-CertificateRequest message, the client MUST send the Certificate
-message, though it may contain zero certificates.  If the client has
-sent a certificate, a digitally-signed CertificateVerify message is
-sent to explicitly verify possession of the private key in the
-certificate.  Finally, the client sends the Finished message.
-
-At this point, the handshake is complete, and the
-client and server may exchange application layer data, which is
-protected using a new set of keys derived from both the premaster
-secret and the handshake transcript (See {{I-D.ietf-tls-session-hash}}
-for the security rationale for this.)
-
-Application data MUST NOT be sent prior to the Finished message.
-[[TODO: can we make this clearer and more clearly match the text above
-about server-side False Start.]]
        Client                                               Server
 
        ClientHello
@@ -1553,6 +1493,66 @@ secret.
 
 [] Indicates messages protected using keys derived from the master secret.
 
+In its first flight, the client sends a ClientHello message which
+contains a random nonce (ClientHello.random), its preferences for
+Protocol Version, Cipher Suite, and a variety of extensions. In
+the same flight, it sends a ClientKeyShare message which contains its
+share of the parameters for key agreement for some set of expected
+server parameters (DHE/ECDHE groups, etc.).
+
+If the client has provided a ClientKeyShare with an appropriate set of
+keying material, the server responds to the ClientHello with a ServerHello
+message. The ServerHello contains the server's nonce
+(ServerHello.random), the server's choice of the Protocol Version,
+Session ID and Cipher Suite, and the server's response to the
+extensions the client offered.
+
+The server can then generate its own keying material share and send a
+ServerKeyShare message which contains its share of the parameters for
+the key agreement. The server can now compute a shared secret based
+on the client's and server's (EC)DHE shares: the Ephemeral Secret (ES).
+At this point, the server starts encrypting all remaining handshake
+traffic with the negotiated cipher suite using a key derived from
+ES. The remainder of the server's handshake messages will be
+encrypted using that key.
+
+Next, the server will send an EncryptedExtensions
+message which contains a response to any client's extensions which are
+not necessary to establish the Cipher Suite. The server will then send
+its certificate in a Certificate message if it is to be authenticated.
+The server may optionally request a certificate from the client by
+sending a CertificateRequest message at this point.
+Finally, if the server is authenticated, it will send a CertificateVerify
+message which provides a signature over the entire handshake up to
+this point. This serves both to authenticate the server and to establish
+the integrity of the negotiation. Finally, the server sends a Finished
+message which includes an integrity check over the handshake keyed
+by the shared secret and demonstrates that the server and client have
+agreed upon the same keys.
+[[TODO: If the server is not requesting client authentication,
+it MAY start sending application data following the Finished, though
+the server has no way of knowing who will be receiving the data. Add this.]]
+
+Once the client receives the ServerKeyShare, it can also compute the
+Ephemeral Secret and decrypt the server's remaining handshake messages.
+The client generates its own sending keys based on the premaster secret
+and will encrypt the remainder of its handshake messages using those keys
+and the newly established cipher suite.  If the server has sent a
+CertificateRequest message, the client MUST send the Certificate
+message, though it may contain zero certificates.  If the client has
+sent a certificate, a digitally-signed CertificateVerify message is
+sent to explicitly verify possession of the private key in the
+certificate. Finally, the client sends the Finished message.
+
+At this point, the handshake is complete, and the client and server
+may exchange application layer data, which is protected using a new
+set of keys derived from both the Ephemeral Secret and the handshake
+transcript (See {{I-D.ietf-tls-session-hash}} for the security
+rationale for this.)
+
+Application data MUST NOT be sent prior to the Finished message.
+[[TODO: can we make this clearer and more clearly match the text above
+about server-side False Start.]]
 
 If the client has not provided an appropriate ClientKeyShare (e.g. it
 includes only DHE or ECDHE groups unacceptable or unsupported by the
@@ -1595,10 +1595,30 @@ the same negotiated parameters.]]
 If no common cryptographic parameters can be negotiated, the server
 will send a fatal alert.
 
-In cases where the client and server have communicated before
-and the server has indicated willingness, the
-client can consolidate its entire first flight of messages to the server as well as send application data
-in its first flight, as shown below:
+TLS also allows several optimized variants of the basic handshake, as
+described below.
+
+
+### Cached Server Configuration
+
+During an initial handshake, the client can provide a server
+configuration containing a long-term (EC)DH share. On future
+connections, the client can indicate to the server that it knows the
+server's configuration and if that configuration is valid the server
+need not send either a Certificate or CertificateVerify message. This
+optimization allows the server to amortize the transmission of these
+messages and the server's signature over multiple handshakes, thus
+reducing the server's computational cost for cipher suites where
+signatures are slower than key agreement, principally RSA signatures
+paired with ECDHE.
+
+
+### 0-RTT Exchange
+
+When a cached server configuration is used, the client can also send
+application data as well as its Certificate and CertificateVerify
+(if client authentication is requested) on its first flight, thus
+reducing handshake latency, as shown below.
 
        Client                                               Server
 
@@ -1606,61 +1626,50 @@ in its first flight, as shown below:
        ClientKeyShare
        {Certificate*}
        {CertificateVerify*}
-       {Finished}              
        [Application Data]        -------->
                                                        ServerHello
                                                     ServerKeyShare
                                  <--------              {Finished}
+       {Finished}                -------->
+
        [Application Data]        <------->      [Application Data]
 
 
                 Figure 3.  Message flow for a zero round trip handshake
-                
-In order to allow the server to clearly distinguish between 0-RTT handshake
-data and 1-RTT handshake data in case of a 0-RTT failure, all handshake
-messages in this flow after the ClientKeyShare shall use the "early_handshake"
-record type. 0-RTT application data from the two phases can be distinguished
-by whether it appears before or after the handshake data.
-[[OPEN ISSUE: Should we use a separate DTLS epoch or just rely on decryption
-failures to reject the data?]]
 
-{::comment}
-[TODO(ekr@rtfm.com): RESUMPTION]
-When the client and server decide to resume a previous session or duplicate an
-existing session (instead of negotiating new security parameters), the message
-flow is as follows:
+IMPORTANT NOTE: Regardless of the cipher suite 0-RTT data sent on the
+first flight is not forward secure, because it is encrypted solely
+with the server's semi-static (EC)DH share. In addition, it is not
+replay protected between connections. Unless the server
+takes special measures outside those provided by TLS (See Section [TODO]),
+the server has no guarantee that the same 0-RTT data was not
+transmitted on multiple 0-RTT connections. However, 0-RTT data
+is protected against replay within a connection and 0-RTT data and
+ordinary TLS data can easily be discriminated.
 
-The client sends a ClientHello using the Session ID of the session to
-be resumed. The server then checks its session cache for a match. If a
-match is found, and the server is willing to re-establish the
-connection under the specified session state, it will send a
-ServerHello with the same Session ID value. At this point, both client
-and server MUST proceed directly to sending Finished messages, which
-are protected using handshake keys as described above, computed using
-resumption master secret created in the first handshake as the
-static secret (no ephemeral secret is used). Once the
-re-establishment is complete, the client and server MAY begin to
-exchange application layer data, which is protected using the
-application secrets (See flow chart below.) If a Session ID match is
-not found, the server generates a new session ID, and the TLS client
-and server perform a full handshake.
 
-       Client                                                Server
+### Resumption and PSK
 
-       ClientHello
-       ClientKeyExhange              -------->
-                                                        ServerHello
-                                     <--------           {Finished}
-       {Finished}                    -------->
-       [Application Data]            <------->   [Application Data]
+Finally, TLS provides a pre-shared key (PSK) mode which allows a
+client and server who share an existing secret (e.g., a key
+established out of band) to establish a connection authenticated by
+that key. PSK ciphersuites can either use PSK in combination with
+an (EC)DHE exchange in order to provide forward secrecy in combination
+with shared keys, or can use PSKs alone, at the cost of losing forward
+secrecy.
 
-           Figure 3.  Message flow for an abbreviated handshake
-
-{:/comment}
+TLS's PSK mode can also be used to eliminate the cost of publc key operations
+for repeated interactions between the same client/server pair: once
+a handshake has completed, the server can send the client a PSK identifier
+which corresponds to a key derived from the initial handshake. The
+client can then use that PSK in future handshakes; if the server accepts
+it, then the security context of the original connection is tied to the
+new connection. In TLS 1.2 and below, this functionality was provided
+by "session resumption" and "session tickets [TODO:RFC4507]. Both mechanisms
+are obsoleted in TLS 1.3.
 
 The contents and significance of each message will be presented in detail in
 the following sections.
-
 
 ##  Handshake Protocol
 
@@ -3163,6 +3172,7 @@ uniform derivation process for all handshake modes.
 
 The diagram below shows the derivation process.
 
+~~~
                    0                           0
                    |                           |
 Ephemeral ---->  HKDF-H                     HKDF-H    <-- Static ---+
@@ -3183,7 +3193,7 @@ Keys                         |        |        |         Keys       |
            Exporter     <------------+
             Master
             Secret
-
+~~~
 
 The key derivation process is as follows:
 
