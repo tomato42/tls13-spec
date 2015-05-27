@@ -3984,3 +3984,11 @@ Archives of the list can be found at:
     Tim Wright
     Vodafone
     timothy.wright@vodafone.com
+
+
+{::comment}
+Rewrite known configuration extension
+Clean up 0-RTT section
+Remove EarlyData.
+Describe key schedule
+{:/comment}
