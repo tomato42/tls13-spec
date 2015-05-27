@@ -3168,11 +3168,11 @@ Keys                         |        |        |         Keys       |
                              +----> HKDF-H               Keys       |
                                      |                              |
                                      |                              |
-          Application   <-HKDF-H-----+-----------------> Resumption |
+          Application   <------------+-----------------> Resumption |
         Traffic Keys                 |                       Master-+
                                      |                       Secret  
                                      |
-           Exporter     <-HKDF-H-----+
+           Exporter     <------------+
             Master
             Secret
 
