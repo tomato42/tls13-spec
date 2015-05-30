@@ -102,6 +102,7 @@ informative:
   RFC4366:
   RFC4492:
   RFC4506:
+  RFC4507:
   RFC5081:
   RFC5116:
   RFC5705:
@@ -466,7 +467,7 @@ of T.  The length of the vector is not included in the encoded stream.
 In the following example, Datum is defined to be three consecutive bytes that
 the protocol does not interpret, while Data is three consecutive Datum,
 consuming a total of nine bytes.
-
+          
        opaque Datum[3];      /* three uninterpreted bytes */
        Datum Data[9];        /* 3 consecutive 3 byte vectors */
 
@@ -1665,7 +1666,7 @@ which corresponds to a key derived from the initial handshake. The
 client can then use that PSK in future handshakes; if the server accepts
 it, then the security context of the original connection is tied to the
 new connection. In TLS 1.2 and below, this functionality was provided
-by "session resumption" and "session tickets [TODO:RFC4507]. Both mechanisms
+by "session resumption" and "session tickets {{RFC4507}}. Both mechanisms
 are obsoleted in TLS 1.3.
 
 The contents and significance of each message will be presented in detail in
