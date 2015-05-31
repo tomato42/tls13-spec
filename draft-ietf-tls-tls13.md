@@ -2328,9 +2328,9 @@ must consider the supported groups in both cases.
 ##### Known Configuration Extension
 
 The known configuration extension allows the client to indicate that
-it already knows either the server's cryptographic key (either a DH
-share or a pre-shared key) or the server's entire state. In the case
-of a DH share, this extension allows the omission of the server
+it wishes to reuse the server's known configuration and semi-static
+(EC)DHE key (see {{server-configuration}} for how to establish these
+configurations. This extension allows the omission of the server
 certificate and signature, with three potential benefits:
 
 - Shortening the handshake because the certificate may be large.
@@ -2338,18 +2338,10 @@ certificate and signature, with three potential benefits:
 - Reducing cryptographic burden on the server if the server has
   an RSA certificate.
 
-- Allowing the client and server to do a 0-RTT exchange [TODO].
-
-
-In the case of a pre-shared key (PSK), this extension is used to
-communicate the PSK which the client desires to use.
+- Allowing the client and server to do a 0-RTT exchange.
 
 %%% Hello Messages
-          enum { known_key(1), known_configuration(2), (255) }
-            ConfigurationType;
-
           struct {
-            ConfigurationType type;
             opaque identifier<2 .. 2^16-1>;
           } KnownConfigurationExtension
 
@@ -2360,97 +2352,81 @@ key_identifier
 
 This extension comes in two flavors:
 
-- An indication of a specific known key.
-
 - An indication of a complete configuration (cipher suites,
   extensions, etc.)
 
-A client which wishes to reuse a known configuration MAY supply a single
-KnownConfigurationExtension value which indicates the known configuration it desires
-to use. It is a fatal error to supply more than one extension.
-A client which wishes to use a pre-shared key MUST supply the
-identity of the key in this extension.
+A client which wishes to reuse a known configuration MAY supply a
+single KnownConfigurationExtension value which indicates the known
+configuration it desires to use. It is a fatal error to supply more
+than one extension.
 
 A server which wishes to use the key echoes the extension
-in its ServerHello. A server MUST NOT negotiate PSK cipher
-modes unless it also agrees upon a known key.
+in its ServerHello.
 
 When the client and server mutually agree upon a known configuration via this
-mechanism, the server MUST reply with a shortened handshake. Specifically:
+mechanism, then the Static Secret (SS) is computed based on the server's (EC)DHE
+key from the identified configuration and the client's key found in the
+ClientKeyShare. If no key from an acceptable group is in the ClientKeyShare,
+the server MUST reject the known_configuration extension.
 
-- If a known_key is specified, the server MUST omit the Certificate and CertificateVerify
-  messages from its response: they are unnecessary in the case of a
-  known DH share and are never used with a pre-shared key.
-
-- If a known_configuration is specified, the server MUST also respond with
-  a shortened ServerHello consisting solely of the negotiated
-  cipher suite and the echoed known configuration extension.
-  The client and the server mutually adopt the configuration
-  associated with the configuration ID.
-
-[[TODO: This is redundant with session resumption, but the idea is to
-deprecate session resumption in favor of this more general notion.
-The issue is that in order for 0-RTT to work, we need to have a single
-defined configuration for the client's data, and that's easiest
-if the client just specifies a defined configuration.]]
+When the known_configuration data extension is in use, the session hash
+is extended to include the server's configuration data and certificate
+(see {{the-session-hash}}).
 
 
-##### Zero-Round Trip Context Extension
-
-[TODO(ekr@rtfm.com): Ugh, this is a terrible name.]
+##### Early Data Indication
 
 In cases where TLS clients have previously interacted with the 
-server, it is possible to do a zero round-trip handshake
-where the client sends the entire handshake and potentially
-application data to the server on its first flight. The
-ZeroRoundTripContext extension is used to negotiate this
-feature.
+server and the server has supplied a known configuration, the client
+can send application data and its Certificate/CertificateVerify
+messages (if client authentication is required). If the client
+opts to do so, it MUST supply an Early Data Indication
+extension. This technique MUST only be used along with
+the "known_configuration" extension.
 
 %%% Hello Messages
+          enum { early_handshake(1), early_data(2),
+                 early_handshake_and_data(3), (255) } EarlyDataType;
+               
           struct {
-            uint32 timestamp;
-            opaque identifier<2 .. 2^16-1>;
-          } ZeroRoundTripContextExtension
+              opaque context<0..255>;
+              EarlyDataType type;
+          } EarlyDataIndication;
 
+context
+: An optional context value that can be used for anti-replay
+  (see below).
 
-A client can indicate its desire to do a 0-RT handshake
-by including a ZeroRoundTripContext extension in its ClientHello.
-An empty extension indicates that the client is willing
-to do 0-RT handshakes but has not yet established enough
-context with the server to do so. In this case, the
-client's first flight is as shown in Figure 1.
-
-Once the client and the server have established a 0-RT context (see
-Section XXX), the client can indicate that its first flight is
-intended to be 0-RT by including the extension in its ClientHello with
-the identifier of the context. It is a fatal error to include
-a non-empty extension without also including KnownConfiguration
-extension of type "known_configuration" indicating the cryptographic
-parameters used to protect the data.In this case, the client's first flight
-will be as shown in Figure 3.
-
-A server which receives a ZeroRoundTripContext extension can
-behave in one of three ways:
+type
+: The type of early data that is being sent. "early_handshake"
+  means that only handshake data is being sent. "early_data"
+  means that only data is being sent. "early_handshake_and_data"
+  means that both are being sent.
+{:br }
+          
+If TLS client authentication is being used, then either
+"early_handshake" or "early_handshake_and_data" MUST be indicated in
+order to sent the client authentication data on the first flight. In
+either case, the client Certificate and CertificateVerify (assuming
+that the Certificate is non-empty) MUST be sent on the first flight A
+server which receives an initial flight with only "early_data" and
+which expects certificate-based client authentication MUST reject the
+early data.
+ 
+A server which receives an EarlyDataIndication extension
+can behave in one of three ways:
 
 - Ignore the extension and return no response. This indicates
-  that the server is unwilling to do a 0-RT handshake. The
-  server MUST ignore any additional 0-RT data sent in the first
-  flight and the client MUST complete an ordinary handshake
-  as shown in Figure 1.
+  that the server has ignored any early data and an ordinary
+  1-RTT handshake is required.
 
-- Return an empty extension, indicating willingness to do 0-RT
-  handshakes but that this handshake will not be 0-RT. Any
-  0-RT data sent in the first flight is ignored as in the previous
-  case. The server MUST then establish a 0-RT context as
-  described in {{server-configuration}}.
+- Return an empty extension, indicating that it intends to
+  process the early data.
 
-- Echo the clients non-empty context identifier, indicating a
-  successful agreement on a 0-RT handshake. In this case, the
-  server will proceed to process the client's first flight
-  0-RT data.
-
-It is a fatal error for the server to respond with a non-empty
-context identifier other than the one in the client's ClientHello.
+The server MUST first validate that the client's "known_configuration"
+extension is valid and that the client has suppled a valid
+key share in the "client_key_shares" extension. If not, it MUST
+ignore the extension.
 
 [[OPEN ISSUE: This just specifies the signaling for 0-RTT but
 not the the 0-RTT cryptographic transforms, including:
@@ -3196,12 +3172,13 @@ Keys                         |        |        |         Keys       |
             Secret
 ~~~
 
-The key derivation process is as follows:
+The master secret derivation process is as follows:
 
-[TODO]    
 
 
 ###  The Session Hash
+
+[TODO: Server configuration]
 
 When a handshake takes place, we define
 
