@@ -1469,8 +1469,7 @@ The basic TLS Handshake is shown in Figure 1, shown below:
 
        Client                                               Server
 
-       ClientHello
-       ClientKeyShare            -------->
+       ClientHello               -------->
                                                        ServerHello
                                                     ServerKeyShare
                                             {EncryptedExtensions*}
@@ -1497,7 +1496,7 @@ secret.
 In its first flight, the client sends a ClientHello message which
 contains a random nonce (ClientHello.random), its preferences for
 Protocol Version, Cipher Suite, and a variety of extensions. In
-the same flight, it sends a ClientKeyShare message which contains its
+this message, it includes a ClientKeyShare extension which contains its
 share of the parameters for key agreement for some set of expected
 server parameters (DHE/ECDHE groups, etc.).
 
@@ -1563,12 +1562,10 @@ ClientKeyShare, as shown in Figure 2:
 
        Client                                               Server
 
-       ClientHello
-       ClientKeyShare            -------->
+       ClientHello               -------->
                                  <--------       HelloRetryRequest
 
-       ClientHello
-       ClientKeyShare            -------->
+       ClientHello               -------->
                                                        ServerHello
                                                     ServerKeyShare
                                             {EncryptedExtensions*}
@@ -1624,7 +1621,6 @@ reducing handshake latency, as shown below.
        Client                                               Server
 
        ClientHello
-       ClientKeyShare
        {Certificate*}
        {CertificateVerify*}
        [Application Data]        -------->
@@ -1683,7 +1679,7 @@ processed and transmitted as specified by the current active session state.
 %%% Handshake Protocol
        enum {
            reserved(0), client_hello(1), server_hello(2),
-           client_key_share(5), hello_retry_request(6),
+           hello_retry_request(6),
            server_key_share(7), certificate(11), reserved(12),
            certificate_request(13), server_configuration(14),
            certificate_verify(15), reserved(16), finished(20), (255)
@@ -1694,7 +1690,6 @@ processed and transmitted as specified by the current active session state.
            uint24 length;             /* bytes in message */
            select (HandshakeType) {
                case client_hello:        ClientHello;
-               case client_key_share:    ClientKeyShare;
                case server_hello:        ServerHello;
                case hello_retry_request: HelloRetryRequest;
                case server_key_share:    ServerKeyShare;
@@ -1729,7 +1724,8 @@ ClientHello as its first message. The client will also send a
 ClientHello when the server has responded to its ClientHello with a
 ServerHello that selects cryptographic parameters that don't match the
 client's ClientKeyShare. In that case, the client MUST send the same
-ClientHello (without modification) along with the new ClientKeyShare.
+ClientHello (without modification) except including a new ClientKeyShare.
+[[TODO: This "without modification" is going to require some cleanup.]]
 If a server receives a ClientHello at any other time, it MUST send
 a fatal "no_renegotiation" alert.
 
@@ -1859,114 +1855,13 @@ MUST send a fatal "decode_error" alert.
 After sending the ClientHello message, the client waits for a ServerHello
 or HelloRetryRequest message.
 
-###  Client Key Share
-
-When this message will be sent:
-
-> This message is always sent by the client. It MUST immediately follow the
-ClientHello message. In backward compatibility mode (see Section XXX)
-it will be included in the EarlyData extension ({{early-data-extension}})
-in the ClientHello.
-
-Meaning of this message:
-
-> This message contains the client's cryptographic parameters
-for zero or more key establishment methods.
-
-Structure of this message:
-
-%%% Key Exchange Messages
-       struct {
-           NamedGroup group;
-           opaque key_exchange<1..2^16-1>;
-       } ClientKeyShareOffer;
-
-group
-: The named group for the key share offer.  This identifies the
-  specific key exchange method that the ClientKeyShareOffer describes.
-  Finite Field Diffie-Hellman {{DH}} parameters are described in
-  {{ffdhe-param}}; Elliptic Curve Diffie-Hellman parameters are
-  described in {{ecdhe-param}}.
-
-key_exchange
-: Key exchange information.  The contents of this field are
-  determined by the value of NamedGroup entry and its corresponding
-  definition.
-{:br }
-
-%%% Key Exchange Messages
-       struct {
-           ClientKeyShareOffer offers<0..2^16-1>;
-       } ClientKeyShare;
-
-offers
-: A list of ClientKeyShareOffer values.
-{:br }
-
-Clients may offer an arbitrary number of ClientKeyShareOffer
-values, each representing a single set of key agreement parameters;
-for instance a client might offer shares for several elliptic curves
-or multiple integer DH groups. The shares for each ClientKeyShareOffer
-MUST by generated independently. Clients MUST NOT offer multiple
-ClientKeyShareOffers for the same parameters. It is explicitly
-permitted to send an empty ClientKeyShare message, as this is used
-to elicit the server's parameters if the client has no useful
-information.
-[TODO: Recommendation about what the client offers. Presumably which integer
-DH groups and which curves.]
-[TODO: Work out how this interacts with PSK and SRP.]
-
-####  Diffie-Hellman Parameters {#ffdhe-param}
-
-Diffie-Hellman {{DH}} parameters for both clients and servers are encoded in
-the opaque key_exchange field of the ClientKeyShareOffer or
-ServerKeyShare structures. The opaque value contains the
-Diffie-Hellman public value (dh_Y = g^X mod p),
-encoded as a big-endian integer.
-
-%%% Key Exchange Messages
-       opaque dh_Y<1..2^16-1>;
-
-#### ECHDE Parameters {#ecdhe-param}
-
-ECDHE parameters for both clients and servers are encoded in the
-opaque key_exchange field of the ClientKeyShareOffer or
-ServerKeyShare structures. The opaque value conveys the Elliptic
-Curve Diffie-Hellman public value (ecdh_Y) represented as a byte
-string ECPoint.point.
-
-%%% Key Exchange Messages
-       opaque point <1..2^8-1>;
-
-point
-: This is the byte string representation of an elliptic curve
-  point following the conversion routine in Section 4.3.6 of ANSI
-  X9.62 {{X962}}.
-{:br }
-
-Although X9.62 supports multiple point formats, any given curve
-MUST specify only a single point format. All curves currently
-specified in this document MUST only be used with the uncompressed
-point format.
-
-Note: Versions of TLS prior to 1.3 permitted point negotiation;
-TLS 1.3 removes this feature in favor of a single point format
-for each curve.
-
-
-[[OPEN ISSUE: We will need to adjust the compressed/uncompressed point issue
-if we have new curves that don't need point compression. This depends
-on the CFRG's recommendations. The expectation is that future curves will
-come with defined point formats and that existing curves conform to
-X9.62.]]
-
 ####  Server Hello
 
 When this message will be sent:
 
 > The server will send this message in response to a ClientHello message when
 it was able to find an acceptable set of algorithms and the client's
-ClientKeyShare message was acceptable. If the client proposed groups are not
+ClientKeyShare extension was acceptable. If the client proposed groups are not
 acceptable by the server, it will respond with an "insufficient_security" fatal alert.
 
 Structure of this message:
@@ -2038,7 +1933,7 @@ When this message will be sent:
 
 > The server will send this message in response to a ClientHello
 message when it was able to find an acceptable set of algorithms but
-the client's ClientKeyShare message did not contain an acceptable
+the client's ClientKeyShare did not contain an acceptable
 offer.  If it cannot find such a match, it will respond with a
 "handshake_failure" alert.
 
@@ -2061,15 +1956,15 @@ selected_group
 The "server_version", "cipher_suite" and "extensions" fields have the
 same meanings as their corresponding values in the ServerHello. The
 server SHOULD send only the extensions necessary for the client to
-generate a correct ClientHello/ClientKeyShare pair.
+generate a correct ClientHello pair.
 
 Upon receipt of a HelloRetryRequest, the client MUST send a new
-ClientHello/ClientKeyShare pair to the server. The ClientKeyShare MUST
+ClientHello with a new ClientKeyShare extension to the server. The ClientKeyShare MUST
 contain both the groups in the original ClientKeyShare as well as a
 ClientKeyShareOffer consistent with the "selected_group" field.
 I.e., it MUST be a superset of the previous ClientKeyShareOffer.
 
-Upon re-sending the ClientHello/ClientKeyShare and receiving the
+Upon re-sending the ClientHello and receiving the
 server's ServerHello/ServerKeyShare, the client MUST verify that
 the selected CipherSuite and NamedGroup match that supplied in
 the HelloRetryRequest.
@@ -2325,6 +2220,101 @@ must consider the supported groups in both cases.
 [[TODO: IANA Considerations.]]
 
 
+
+####  Client Key Share
+
+The ClientKeyShare extension is always provided by the client.
+It ontains the client's cryptographic parameters
+for zero or more key establishment methods.
+[[TODO: PSK only]].
+Meaning of this message:
+
+%%% Key Exchange Messages
+       struct {
+           NamedGroup group;
+           opaque key_exchange<1..2^16-1>;
+       } ClientKeyShareOffer;
+
+group
+: The named group for the key share offer.  This identifies the
+  specific key exchange method that the ClientKeyShareOffer describes.
+  Finite Field Diffie-Hellman {{DH}} parameters are described in
+  {{ffdhe-param}}; Elliptic Curve Diffie-Hellman parameters are
+  described in {{ecdhe-param}}.
+
+key_exchange
+: Key exchange information.  The contents of this field are
+  determined by the value of NamedGroup entry and its corresponding
+  definition.
+{:br }
+
+%%% Key Exchange Messages
+       struct {
+           ClientKeyShareOffer offers<0..2^16-1>;
+       } ClientKeyShare;
+
+offers
+: A list of ClientKeyShareOffer values.
+{:br }
+
+Clients may offer an arbitrary number of ClientKeyShareOffer
+values, each representing a single set of key agreement parameters;
+for instance a client might offer shares for several elliptic curves
+or multiple integer DH groups. The shares for each ClientKeyShareOffer
+MUST by generated independently. Clients MUST NOT offer multiple
+ClientKeyShareOffers for the same parameters. It is explicitly
+permitted to send an empty ClientKeyShare extension as this is used
+to elicit the server's parameters if the client has no useful
+information.
+[TODO: Recommendation about what the client offers. Presumably which integer
+DH groups and which curves.]
+[TODO: Work out how this interacts with PSK and SRP.]
+
+#####  Diffie-Hellman Parameters {#ffdhe-param}
+
+Diffie-Hellman {{DH}} parameters for both clients and servers are encoded in
+the opaque key_exchange field of the ClientKeyShareOffer or
+ServerKeyShare structures. The opaque value contains the
+Diffie-Hellman public value (dh_Y = g^X mod p),
+encoded as a big-endian integer.
+
+%%% Key Exchange Messages
+       opaque dh_Y<1..2^16-1>;
+
+##### ECHDE Parameters {#ecdhe-param}
+
+ECDHE parameters for both clients and servers are encoded in the
+opaque key_exchange field of the ClientKeyShareOffer or
+ServerKeyShare structures. The opaque value conveys the Elliptic
+Curve Diffie-Hellman public value (ecdh_Y) represented as a byte
+string ECPoint.point.
+
+%%% Key Exchange Messages
+       opaque point <1..2^8-1>;
+
+point
+: This is the byte string representation of an elliptic curve
+  point following the conversion routine in Section 4.3.6 of ANSI
+  X9.62 {{X962}}.
+{:br }
+
+Although X9.62 supports multiple point formats, any given curve
+MUST specify only a single point format. All curves currently
+specified in this document MUST only be used with the uncompressed
+point format.
+
+Note: Versions of TLS prior to 1.3 permitted point negotiation;
+TLS 1.3 removes this feature in favor of a single point format
+for each curve.
+
+
+[[OPEN ISSUE: We will need to adjust the compressed/uncompressed point issue
+if we have new curves that don't need point compression. This depends
+on the CFRG's recommendations. The expectation is that future curves will
+come with defined point formats and that existing curves conform to
+X9.62.]]
+
+
 ##### Known Configuration Extension
 
 The known configuration extension allows the client to indicate that
@@ -2454,60 +2444,12 @@ the context string between connections, which is only practical when
 they have globally unique state (this is easiest with a
 non-distributed server endpoint).
 
-
-##### Early Data Extension
-
-[TODO(ekr@rtfm.com): I think we should just push this into a
-ClientHello extension directly and then decree that any
-0-RTT data needs to be in separate messages.]
-    
-TLS versions before 1.3 have a strict message ordering and do not
-permit additional messages to follow the ClientHello. The EarlyData
-extension allows TLS messages which would otherwise be sent as
-separate records to be instead inserted in the ClientHello. The
-extension simply contains the TLS records which would otherwise have
-been included in the client's first flight.
-
-%%% Hello Messages
-       struct {
-           TLSCipherText messages<5 .. 2^24-1>;
-       } EarlyDataExtension;
-
-Extra messages for the client's first flight MAY either be transmitted
-standalone or sent as EarlyData. However, when a client does not know
-whether TLS 1.3 can be negotiated -- e.g., because the server may
-support a prior version of TLS or because of network intermediaries --
-it SHOULD use the EarlyData extension. If the EarlyData extension
-is used, then clients MUST NOT send any messages other than the
-ClientHello in their initial flight.
-
-Any data included in EarlyData is not integrated into the handshake
-hashes directly. E.g., if the ClientKeyShare is included in
-EarlyData, then the handshake hashes consist of ClientHello +
-ServerHello, etc.  However, because the ClientKeyShare is in a
-ClientHello extension, it is still hashed transitively. This procedure
-guarantees that the Finished message covers these messages even if
-they are ultimately ignored by the server (e.g., because it is sent to
-a TLS 1.2 server). TLS 1.3 servers MUST understand messages sent in
-EarlyData, and aside from hashing them differently, MUST treat them as
-if they had been sent immediately after the ClientHello.
-
-Servers MUST NOT send the EarlyData extension. Negotiating TLS 1.3
-serves as acknowledgment that it was processed as described above.
-
-[[OPEN ISSUE: This is a fairly general mechanism which is possibly
-overkill in the 1-RTT case, where it would potentially be more
-attractive to just have a "ClientKeyShare" extension. However,
-for the 0-RTT case we will want to send the Certificate, CertificateVerify,
-and application data, so a more general extension seems appropriate
-at least until we have determined we don't need it for 0-RTT.]]
-
 ###  Server Key Share
 
 When this message will be sent:
 
 > This message will be sent immediately after the ServerHello message if
-the client has provided a ClientKeyShare message which is compatible
+the client has provided a ClientKeyShare extension which is compatible
 with the selected cipher suite and group parameters.
 
 
@@ -2529,7 +2471,7 @@ Structure of this message:
 group
 
 : The named group for the key share offer.  This identifies the
-selected key exchange method from the ClientKeyShare message
+selected key exchange method from the ClientKeyShare
 ({{client-key-share}}), identifying which value from the
 ClientKeyShareOffer the server has accepted as is responding to.
 
@@ -3164,7 +3106,7 @@ fields of the handshake messages. This is the concatenation of all the
 exchanged Handshake structures.
 
 For concreteness, at the point where the handshake master secret
-is derived, the session hash includes the ClientHello, ClientKeyShare,
+is derived, the session hash includes the ClientHello,
 ServerHello, and ServerKeyShare, and HelloRetryRequest (if any)
 (though see [https://github.com/tlswg/tls13-spec/issues/104]).
 At the point where the master secret is derived, it includes every
