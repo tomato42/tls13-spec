@@ -2428,6 +2428,8 @@ extension is valid and that the client has suppled a valid
 key share in the "client_key_shares" extension. If not, it MUST
 ignore the extension.
 
+[[TODO: How does the client behave if the indication is rejected.]]
+
 [[OPEN ISSUE: This just specifies the signaling for 0-RTT but
 not the the 0-RTT cryptographic transforms, including:
 
@@ -2441,46 +2443,17 @@ What's here now needs a lot of cleanup before it is clear
 and correct.]]
 
 
-###### 0-RTT Anti-Replay Handling
+###### Replay Properties
 
-In versions of TLS prior to TLS 1.3 and in TLS 1.3 1-RTT mode the
-server ensures that the clients messages are not being replayed by
-providing a fresh Random value in the ServerHello, which is then
-incorporated into the key computation. However, in 0-RTT mode,
-the client can send data prior to the server's first message and
-thus this mechanism is not available to protect that data. Instead,
-the server MUST keep state to ensure that the ClientHello is
-never replayed. If a replay or potential replay is detected, the
-server MUST reject the 0-RTT handshake.
+TLS does not provide any inter-connection mechanism for replay
+protection for data sent by the client in the first flight.  As a
+special case, implementations MAY provide a context string in an
+out-of-band channel for the client to echo back in its
+handshake. Implementations are responsible for ensuring uniqueness of
+the context string between connections, which is only practical when
+they have globally unique state (this is easiest with a
+non-distributed server endpoint).
 
-The server can use any mechanism of its choice to keep state, however
-the following mechanism, derived from [I-D.draft-agl-tls-snapstart]
-is RECOMMENDED:
-
-The server's state is stored under the identifier provided in
-the ZeroRoundTripContextExtension. This state includes:
-
-- The time window for which records are being kept.
-- A list of all the client random values which have
-  been received during this time window.
-
-When an attempted 0-RTT handshake is received, the server performs
-the following steps:
-
-- Look up the state from the identifier. If no records are
-  found, the 0-RTT attempt is rejected.
-
-- If the client's timestamp is outside the stored window for
-  this identifier, the 0-RTT attempt is rejected.
-
-- If the client's ClientRandom value is found in the server's
-  database, the 0-RTT attempt is rejected.
-  [[OPEN ISSUE: Should we send an alert if this is TLS, but
-  not DTLS.]]
-
-If all of these checks succeed, the server adds the ClientRandom
-value to the server's database and allows the 0-RTT handshake
-to continue.
 
 ##### Early Data Extension
 
