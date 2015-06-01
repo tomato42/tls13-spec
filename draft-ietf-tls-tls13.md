@@ -96,6 +96,7 @@ informative:
   RFC2246:
   RFC3268:
   RFC4086:
+  RFC4279:
   RFC4302:
   RFC4303:
   RFC4346:
@@ -1698,6 +1699,7 @@ processed and transmitted as specified by the current active session state.
                case server_configuration:ServerConfiguration;
                case certificate_verify:  CertificateVerify;
                case finished:            Finished;
+               case session_ticket:      NewSessionTicket;
            } body;
        } Handshake;
 
@@ -2332,10 +2334,10 @@ certificate and signature, with three potential benefits:
 
 %%% Hello Messages
           struct {
-            opaque identifier<2 .. 2^16-1>;
+              opaque identifier<0..2^16-1>;
           } KnownConfigurationExtension
 
-key_identifier
+identifier
 : An opaque label for the configuration in question.
 
 {:br }
@@ -2362,6 +2364,29 @@ the server MUST reject the known_configuration extension.
 When the known_configuration data extension is in use, the session hash
 is extended to include the server's configuration data and certificate
 (see {{the-session-hash}}).
+
+
+##### Pre-Shared Key Extension
+
+The pre-shared key extension is used to indicate the identity of the
+pre-shared key to be used with a given handshake in association
+with a PSK or (EC)DHE-PSK cipher suite (see {{RFC4279}} for background).
+
+%%% Hello Messages
+          struct {
+              opaque psk_identity<0..2^16-1>;
+          } PreSharedKeyExtension;
+
+identifier
+: An opaque label for the pre-shared key.
+
+When the client offers a PSK cipher suite, it MUST also supply a
+PreSharedKeyExtension to indicate the PSK to be used. If no
+such extension is present, the server MUST NOT negotiate
+a PSK cipher suite.
+
+The server MUST not send this extension: selection of a PSK
+cipher suite indicates that the key was used.
 
 
 ##### Early Data Indication
@@ -3036,6 +3061,46 @@ message. The random values are exchanged in the hello messages. All
 that remains is to calculate the key schedule.
 
 
+### New Session Ticket Message
+
+After the server has received the client Finished message, it MAY send
+a NewSessionTicket message. This message creates a pre-shared key
+(PSK) binding between the Resumption Master Secret and the ticket
+label. The client MAY use this PSK for future handshakes by including
+it in the Pre-Shared Key Extension in its ClientHello
+({{pre-shared-key-extension}}) and supplying a suitable PSK cipher
+suite.
+
+%%% Ticket Establishment
+      struct {
+          uint32 ticket_lifetime_hint;
+          opaque ticket<0..2^16-1>;
+      } NewSessionTicket;
+
+ticket_lifetime_hint
+: Indicates the lifetime
+in seconds as a 32-bit unsigned integer in network byte order.  A
+value of zero is reserved to indicate that the lifetime of the ticket
+is unspecified.
+
+ticket
+: The value of the ticket to be used as the PSK identifier.
+{:br }
+
+The ticket lifetime hint is informative only.
+A client SHOULD delete the ticket and associated
+state when the time expires.  It MAY delete the ticket earlier based
+on local policy.  A server MAY treat a ticket as valid for a shorter
+or longer period of time than what is stated in the
+ticket_lifetime_hint.
+
+The ticket itself is an opaque label and MAY either be a database
+lookup key or a self-encrypted value. Section 4 of {{RFC4507}}
+describes a recommended ticket construction mechanism.
+
+[[TODO: Should we require that tickets be bound to the existing
+symmetric cipher suite.??]
+
 ##  Computing the Master Secrets
 
 The TLS handshake establishes secret keying material which is then used
@@ -3256,7 +3321,7 @@ This section describes protocol types and constants.
 %%### Key Exchange Messages
 %%### Authentication Messages
 %%### Handshake Finalization Messages
-
+%%### Ticket Establishment
 
 ## The Cipher Suite
 
