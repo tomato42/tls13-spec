@@ -2225,10 +2225,11 @@ must consider the supported groups in both cases.
 
 ####  Client Key Share
 
-The ClientKeyShare extension is always provided by the client.
-It ontains the client's cryptographic parameters
+The ClientKeyShare extension MUST be provided by the client if it
+offers any cipher suites that involve asymmetric (currently DHE or
+ECDHE) key exchange.  It ontains the client's cryptographic parameters
 for zero or more key establishment methods.
-[[TODO: PSK only]].
+
 Meaning of this message:
 
 %%% Key Exchange Messages
@@ -2270,7 +2271,6 @@ to elicit the server's parameters if the client has no useful
 information.
 [TODO: Recommendation about what the client offers. Presumably which integer
 DH groups and which curves.]
-[TODO: Work out how this interacts with PSK and SRP.]
 
 #####  Diffie-Hellman Parameters {#ffdhe-param}
 
@@ -2739,17 +2739,12 @@ client authentication.
 
 ###  Server Configuration
 
-[TODO: Clean up the messages this comes before and after]
-
 When this message will be sent:
 
 > This message is used to provide a server configuration which
 the client can use in future to skip handshake negotiation and
 (optionally) to allow 0-RTT handshakes. The ServerConfiguration
 message is sent as the last message before the CertificateVerify.
-
-[TODO(ekr@rtfm.com): Should we send this in Update instead?
-Wouldn't that be nice?]
 
 Structure of this Message:
 
@@ -3171,20 +3166,30 @@ The master secret derivation process is as follows:
 
 ###  The Session Hash
 
-[TODO: Server configuration]
-
 When a handshake takes place, we define
 
-       session_hash = Hash(handshake_messages)
+       session_hash = Hash(
+                           Hash(handshake_messages),
+                           Hash(configuration)
+                          )
 
-where "handshake_messages" refers to all handshake messages sent or
-received, starting at ClientHello up to the present time, with the
-exception of the Finished message, including the type and length
-fields of the handshake messages. This is the concatenation of all the
-exchanged Handshake structures.
+handshake_messages
+: All handshake messages sent or
+  received, starting at ClientHello up to the present time, with the
+  exception of the Finished message, including the type and length
+  fields of the handshake messages. This is the concatenation of all the
+  exchanged Handshake structures.
+
+configuration
+: When the known_configuration extension is in use ({{known-configuration-extension}},
+this contains the concatenation of the ServerConfiguration and Certificate
+messages from the handshake where the configuration was established. Note that
+this requires the client and server to memorize these values.
+{:br }
+
 
 For concreteness, at the point where the handshake master secret
-is derived, the session hash includes the ClientHello,
+is derived, handshake_messages includes the ClientHello,
 ServerHello, and ServerKeyShare, and HelloRetryRequest (if any)
 (though see [https://github.com/tlswg/tls13-spec/issues/104]).
 At the point where the master secret is derived, it includes every
@@ -3958,8 +3963,5 @@ Archives of the list can be found at:
 
 
 {::comment}
-Rewrite known configuration extension
-Clean up 0-RTT section
-Remove EarlyData.
 Describe key schedule
 {:/comment}
