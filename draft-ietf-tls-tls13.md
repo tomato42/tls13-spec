@@ -2808,11 +2808,11 @@ Structure of this message:
 %%% Authentication Messages
        struct {
             digitally-signed struct {
-                opaque handshake_messages_hash[hash_length];
+               opaque session_hash[hash_length];
             }
        } CertificateVerify;
 
-> Here handshake_messages_hash is a digest of all handshake messages
+> Where session_hash is as described in {{the-session-hash}
 sent or received, starting at ClientHello and up to, but not
 including, this message, including the type and length fields of the
 handshake messages. This is a digest of the concatenation of all the
@@ -2820,8 +2820,7 @@ Handshake structures (as defined in {{handshake-protocol}}) exchanged
 thus far. For the PRF defined in Section 5, the digest MUST be the
 Hash used as the basis for the PRF.  Any cipher suite which defines a
 different PRF MUST also define the Hash to use in this
-computation. Note that this is the same running hash that is used in
-the Finished message {{server-finished}}.
+computation.
 
 > The context string for the signature is "TLS 1.3, server CertificateVerify". A
 hash of the handshake messages is signed rather than the messages themselves
@@ -2884,7 +2883,7 @@ The verify_data value is computed as follows:
 
                        
 verify_data
-:      PRF(finished_secret, finished_label, Hash(handshake_messages))
+:      PRF(finished_secret, finished_label, session_hash)
            [0..verify_data_length-1];
 
 finished_label
@@ -2910,11 +2909,6 @@ Otherwise:
 [[OPEN ISSUE: In Hugo's diagram, the secrets used for Finished have
 the session_hash merged in, but since we compute the session hash
 here, that seems unnecessary. Double check.]]
-
-> Hash denotes a Hash of the handshake messages. For the PRF defined in
-{{HMAC}}, the Hash MUST be the Hash used as the basis for the PRF. Any cipher
-suite which defines a different PRF MUST also define the Hash to use in the
-Finished computation.
 
 > In previous versions of TLS, the verify_data was always 12 octets long. In
 the current version of TLS, it depends on the cipher suite. Any cipher suite
