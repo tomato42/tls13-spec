@@ -2402,6 +2402,12 @@ that the Certificate is non-empty) MUST be sent on the first flight A
 server which receives an initial flight with only "early_data" and
 which expects certificate-based client authentication MUST reject the
 early data.
+
+In order to allow servers to readily distinguish between messages sent
+in the first flight and in the second flight (in cases where the
+server rejects the EarlyDataIndication extension), the client MUST
+send the handshake messages as content type
+"early_handshake".
  
 A server which receives an EarlyDataIndication extension
 can behave in one of three ways:
@@ -2723,12 +2729,14 @@ Wouldn't that be nice?]
 Structure of this Message:
 
 %%% Hello Messages
+          enum { false(0), true(1) } Boolean;
+
           struct {
               opaque configuration_id<0..2^16-1>;
               uint32 expiration_date;
               NamedGroup group;
               opaque server_key<1..2^16-1>;
-              opaque zero_rt_id<0..2^16-1>;
+              Boolean early_data_allowed;
           } ServerConfiguration;
 
 
@@ -2747,17 +2755,22 @@ expiration_date
 server_key
 : The long-term DH key that is being established for this configuration.
 
-zero_rt_id
-: The identifier for the 0-RT context (if any) being established by this
-handshake.
-
+early_data_allowed
+: Whether the client may send data in its first flight (see {{early-data-indication}}).
 {:br }
 
 The semantics of this message are to establish a shared state between
-the client and server for a configuration of type known_configuration
+the client and server for use with the "known_configuration" extension
 with the key specified in key and with the handshake parameters negotiated
-by this handshake. If a non-empty zero_rt_id is established,
-then the client can use a 0-RT handshake as shown in Figure 3.
+by this handshake. [[OPEN ISSUE: Should this allow some sort of parameter
+negotiation?]]
+
+When the ServerConfiguration message is sent, the server MUST also
+send a Certificate message and a CertificateVerify message, even
+if the "known_configuration" extension was used for this handshake,
+thus requiring a signature over the configuration before it can
+be used by the client.
+
 
 ###  Server Certificate Verify
 
