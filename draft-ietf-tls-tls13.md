@@ -858,7 +858,7 @@ connection end
 
 PRF algorithm
 
-: An algorithm used to generate keys from the master secret (see
+: An algorithm used to generate keys from the appropriate secret (see
   {{HMAC}} and {{key-calculation}}).
 
 record protection algorithm
@@ -875,8 +875,7 @@ record protection algorithm
 master secret
 
 : A 48-byte secret shared between the two peers in the connection
-and used to generate keys for protecting data. The TLS handshake
-generates multiple master secrets in different handshake phases.
+and used to generate keys for protecting data.
 
 
 client random
@@ -912,6 +911,8 @@ These parameters are defined in the presentation language as:
            opaque                 client_random[32];
            opaque                 server_random[32];
        } SecurityParameters;
+
+[TODO: update this to handle new key hierarchy.]
 
 The record layer will use the security parameters to generate the following four
 items:
@@ -1116,26 +1117,28 @@ The Record Protocol requires an algorithm to generate keys required by the
 current connection state (see {{the-security-parameters}}) from the security
 parameters provided by the handshake protocol.
 
-The master secret is expanded into a sequence of secure bytes, which
+The relevant secret is expanded into a sequence of secure bytes, which
 is then split to a client write encryption key and a server write
 encryption key. Each of these is generated from the byte sequence in
 that order. Unused values are empty.
 
-When keys are generated, the current master secret (MS) is used
-as an entropy source. For handshake records, this means the
-hs_master_secret. For application data records, this means the
-regular master_secret.
+When keys are generated, the current secret is used as an entropy source.
+
+* For handshake records, this means the ephemeral secret (ES)
+* For early handshake and application data records, this means the
+  static secret (SS).
+* For ordinary application data records, this means the master secret.
 
 To generate the key material, compute
 
-       key_block = PRF(MS,
+       key_block = PRF(Secret,
                        "key expansion",
                        session_hash);
 
-where MS is the relevant master secret and
-session_hash is the value defined in {{the-session-hash}}.
-The PRF is computed enough times to generate the necessary amount of data for the key_block,
-which is then partitioned as follows:
+where Secret is the relevant secret and session_hash is the value
+defined in {{the-session-hash}}.  The PRF is computed enough times to
+generate the necessary amount of data for the key_block, which is then
+partitioned as follows:
 
        client_write_key[SecurityParameters.enc_key_length]
        server_write_key[SecurityParameters.enc_key_length]
@@ -1167,10 +1170,6 @@ cipher spec
 
 resumption master secret
 : 48-byte secret shared between the client and server.
-
-is resumable
-: A flag indicating whether the session can be used to initiate new
-  connections.
 {:br }
 
 These items are then used to create security parameters for use by the record
@@ -1443,8 +1442,7 @@ The TLS Handshake Protocol involves the following steps:
 -  Exchange certificates and cryptographic information to allow the
   client and server to authenticate themselves.
 
--  Generate a series of master secrets from the shared secrets and exchanged
-  random values.
+-  Compute keying material from the shared secret values.
 
 -  Provide security parameters to the record layer.
 
@@ -1489,8 +1487,7 @@ The basic TLS Handshake is shown in Figure 1, shown below:
 
 \* Indicates optional or situation-dependent messages that are not always sent.
 
-{} Indicates messages protected using keys derived from the handshake master
-secret.
+{} Indicates messages protected using keys derived from the ephemeral secret.
 
 [] Indicates messages protected using keys derived from the master secret.
 
@@ -1535,9 +1532,9 @@ it MAY start sending application data following the Finished, though
 the server has no way of knowing who will be receiving the data. Add this.]]
 
 Once the client receives the ServerKeyShare, it can also compute the
-Ephemeral Secret and decrypt the server's remaining handshake messages.
-The client generates its own sending keys based on the premaster secret
-and will encrypt the remainder of its handshake messages using those keys
+ephemeral secret and decrypt the server's remaining handshake messages.
+The client generates its own sending keys based on the ephemeral
+secret and will encrypt the remainder of its handshake messages using those keys
 and the newly established cipher suite.  If the server has sent a
 CertificateRequest message, the client MUST send the Certificate
 message, though it may contain zero certificates.  If the client has
@@ -1622,8 +1619,8 @@ reducing handshake latency, as shown below.
        Client                                               Server
 
        ClientHello
-       {Certificate*}
-       {CertificateVerify*}
+       (Certificate*)
+       (CertificateVerify*)
        [Application Data]        -------->
                                                        ServerHello
                                                     ServerKeyShare
@@ -1634,6 +1631,8 @@ reducing handshake latency, as shown below.
 
 
                 Figure 3.  Message flow for a zero round trip handshake
+
+() Indicates messages protected using keys derived from the static secret.
 
 IMPORTANT NOTE: Regardless of the cipher suite 0-RTT data sent on the
 first flight is not forward secure, because it is encrypted solely
@@ -2867,7 +2866,7 @@ Meaning of this message:
 correct. Once a side has sent its Finished message and received and
 validated the Finished message from its peer, it may begin to send and
 receive application data over the connection. This data will be
-protected under keys derived from the hs_master_secret (see
+protected under keys derived from the ephemeral secret (see
 {{cryptographic-computations}}).
 
 Structure of this message:
@@ -2892,23 +2891,9 @@ finished_label
   the string "server finished".
 {:br }
 
-For modes where ES != 0 the finished_secret is computed as:
+The finished_secret is computed as:
 
-         finished_secret = PRF(AMS, "finished_secret",
-                               SecurityParameters.server_random +
-                               SecurityParameters.client_random)
-
-Otherwise:
-
-         finished_secret = PRF(MS, "finished_secret",
-                               SecurityParameters.server_random +
-                               SecurityParameters.client_random)
-
-
-
-[[OPEN ISSUE: In Hugo's diagram, the secrets used for Finished have
-the session_hash merged in, but since we compute the session hash
-here, that seems unnecessary. Double check.]]
+         finished_secret = HKDF(SS, "finished_secret", session_hash)
 
 > In previous versions of TLS, the verify_data was always 12 octets long. In
 the current version of TLS, it depends on the cipher suite. Any cipher suite
@@ -3039,17 +3024,6 @@ specify mechanisms for certificates to indicate which digest algorithms are to
 be used with DSA.
 
 
-#  Cryptographic Computations
-
-In order to begin connection protection, the TLS Record Protocol
-requires specification of a suite of algorithms, a master secret, and
-the client and server random values. The authentication, key
-agreement, and record protection algorithms are determined by the
-cipher_suite selected by the server and revealed in the ServerHello
-message. The random values are exchanged in the hello messages. All
-that remains is to calculate the key schedule.
-
-
 ### New Session Ticket Message
 
 After the server has received the client Finished message, it MAY send
@@ -3090,6 +3064,18 @@ describes a recommended ticket construction mechanism.
 [[TODO: Should we require that tickets be bound to the existing
 symmetric cipher suite.??]
 
+
+#  Cryptographic Computations
+
+In order to begin connection protection, the TLS Record Protocol
+requires specification of a suite of algorithms, a master secret, and
+the client and server random values. The authentication, key
+agreement, and record protection algorithms are determined by the
+cipher_suite selected by the server and revealed in the ServerHello
+message. The random values are exchanged in the hello messages. All
+that remains is to calculate the key schedule.
+
+
 ##  Computing the Master Secrets
 
 The TLS handshake establishes secret keying material which is then used
@@ -3125,9 +3111,7 @@ mode (DHE, ECDHE, PSK, etc.) and is summarized in the table below:
 ~~~
 
 These shared secret values are used to generate master secret values as shown
-below. For the handshake variants with only one secret, a fixed string of 0s
-(indicated by 0 in the table above) is used instead, allowing for a
-uniform derivation process for all handshake modes.
+below. 
 
 The diagram below shows the derivation process.
 
@@ -3154,7 +3138,7 @@ Keys                         |        |        |         Keys       |
             Secret
 ~~~
 
-The master secret derivation process is as follows:
+
 
 
 
@@ -3181,9 +3165,8 @@ messages from the handshake where the configuration was established. Note that
 this requires the client and server to memorize these values.
 {:br }
 
-
-For concreteness, at the point where the handshake master secret
-is derived, handshake_messages includes the ClientHello,
+For concreteness, at the point where the handshake traffic keys
+are derived, handshake_messages includes the ClientHello,
 ServerHello, and ServerKeyShare, and HelloRetryRequest (if any)
 (though see [https://github.com/tlswg/tls13-spec/issues/104]).
 At the point where the master secret is derived, it includes every
@@ -3196,7 +3179,7 @@ first flight, as it covers the client's Certificate and CertificateVerify.
 ###  Diffie-Hellman
 
 A conventional Diffie-Hellman computation is performed. The negotiated key (Z)
-is used as the shared_secret, and is converted into the master secrets, as
+is used as the shared_secret, and is used in the key schedule as
 specified above. Leading bytes of Z that contain all zero bits are stripped
 before it is used as the input to the PRF.
 
@@ -3644,6 +3627,8 @@ with a "protocol_version" alert message and close the connection.
 
 #  Security Analysis
 
+[[TODO: The entire security analysis needs a rewrite.]]
+
 The TLS protocol is designed to establish a secure connection between a client
 and a server communicating over an insecure channel. This document makes
 several traditional assumptions, including that attackers have substantial
@@ -3675,6 +3660,8 @@ clients must supply an acceptable certificate to the server. Each party is
 responsible for verifying that the other's certificate is valid and has not
 expired or been revoked.
 
+[[TODO: Rewrite this because the master_secret is not used this way any
+more after Hugo's changes.]]
 The general goal of the key exchange process is to create a master_secret
 known to the communicating parties and not to attackers (see
 {{computing-the-master-secrets}}). The master_secret is required to generate the
@@ -3688,7 +3675,7 @@ Completely anonymous sessions can be established using Diffie-Hellman for key
 exchange. The server's public parameters are contained in the server key
 share message, and the client's are sent in the client key share message.
 Eavesdroppers who do not know the private values should not be able to find the
-Diffie-Hellman result (i.e., the pre_master_secret).
+Diffie-Hellman result.
 
 Warning: Completely anonymous connections only provide protection against
 passive eavesdropping. Unless an independent tamper-proof channel is used to
@@ -3739,31 +3726,12 @@ select different encryption algorithms than they would normally choose.
 For this attack, an attacker must actively change one or more handshake
 messages. If this occurs, the client and server will compute different values
 for the handshake message hashes. As a result, the parties will not accept each
-others' Finished messages. Without the master_secret, the attacker cannot
+others' Finished messages. Without the static secret, the attacker cannot
 repair the Finished messages, so the attack will be discovered.
-
-###  Resuming Sessions
-
-When a connection is established by resuming a session, new ClientHello.random
-and ServerHello.random values are hashed with the session's master_secret.
-Provided that the master_secret has not been compromised and that the secure
-hash operations used to produce the record protection keys are secure,
-the connection should be secure and effectively independent from previous
-connections. Attackers cannot use known keys to
-compromise the master_secret without breaking the secure hash operations.
-
-Sessions cannot be resumed unless both the client and server agree. If either
-party suspects that the session may have been compromised, or that certificates
-may have expired or been revoked, it should force a full handshake. An upper
-limit of 24 hours is suggested for session ID lifetimes, since an attacker who
-obtains a master_secret may be able to impersonate the compromised party until
-the corresponding session ID is retired. Applications that may be run in
-relatively insecure environments should not write session IDs to stable storage.
-
 
 ## Protecting Application Data
 
-The master_secret is hashed with the ClientHello.random and ServerHello.random
+The shared secrets are hashed with the handshake transcript
 to produce unique record protection secrets for each connection.
 
 Outgoing data is protected using an AEAD algorithm before transmission. The
