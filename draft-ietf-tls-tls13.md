@@ -758,52 +758,6 @@ For example:
        Example1 ex1 = {1, 4};  /* assigns f1 = 1, f2 = 4 */
 
 
-# The Pseudorandom Function {#HMAC}
-
-A construction is required to do expansion of secrets into blocks
-of data for the purposes of key generation or validation. This pseudorandom
-function (PRF) takes as input a secret, a seed, and an identifying label and
-produces an output of arbitrary length.
-
-In this section, we define one PRF, based on HMAC {{RFC2104}}. This PRF with the SHA-256
-hash function is used for all cipher suites defined in this document and in TLS
-documents published prior to this document when TLS 1.2 or later is negotiated. New
-cipher suites MUST explicitly specify a PRF and, in general, SHOULD use the TLS
-PRF with SHA-256 or a stronger standard hash function.
-
-First, we define a data expansion function, P_hash(secret, data), that uses a
-single hash function to expand a secret and seed into an arbitrary quantity of
-output:
-
-       P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
-                              HMAC_hash(secret, A(2) + seed) +
-                              HMAC_hash(secret, A(3) + seed) + ...
-
-where + indicates concatenation.
-
-A() is defined as:
-
-       A(0) = seed
-       A(i) = HMAC_hash(secret, A(i-1))
-
-P_hash can be iterated as many times as necessary to produce the required
-quantity of data. For example, if P_SHA256 is being used to create 80 bytes of
-data, it will have to be iterated three times (through A(3)), creating 96 bytes
-of output data; the last 16 bytes of the final iteration will then be
-discarded, leaving 80 bytes of output data.
-
-TLS's PRF is created by applying P_hash to the secret as:
-
-       PRF(secret, label, seed) = P_<hash>(secret, label + seed)
-
-The label is an ASCII string.  It should be included in the exact
-form it is given without a length byte or trailing null character.
-For example, the label "slithy toves" would be processed by hashing
-the following bytes:
-
-       73 6C 69 74 68 79 20 74 6F 76 65 73
-
-
 #  The TLS Record Protocol
 
 The TLS Record Protocol is a layered protocol. At each layer, messages
@@ -856,10 +810,10 @@ connection end
 : Whether this entity is considered the "client" or the "server" in
   this connection.
 
-PRF algorithm
+Hash algorithm
 
 : An algorithm used to generate keys from the appropriate secret (see
-  {{HMAC}} and {{key-calculation}}).
+  {{key-schedule}} and {{key-calculation}}).
 
 record protection algorithm
 
@@ -893,16 +847,16 @@ These parameters are defined in the presentation language as:
 %%% Security Parameters
        enum { server, client } ConnectionEnd;
 
-       enum { tls_prf_sha256 } PRFAlgorithm;
+       enum { tls_kdf_sha256, tls_kdf_sha384 } KDFAlgorithm;
 
        enum { aes_gcm } RecordProtAlgorithm;
 
-       /* The algorithms specified in PRFAlgorithm and
+       /* The algorithms specified in KDFAlgorithm and
           RecordProtAlgorithm may be added to. */
 
        struct {
            ConnectionEnd          entity;
-           PRFAlgorithm           prf_algorithm;
+           KDFAlgorithm           kdf_algorithm;
            RecordProtAlgorithm    record_prot_algorithm;
            uint8                  enc_key_length;
            uint8                  iv_length;
@@ -1131,14 +1085,16 @@ When keys are generated, the current secret is used as an entropy source.
 
 To generate the key material, compute
 
-       key_block = PRF(Secret,
-                       "key expansion",
-                       session_hash);
+       key_block = HKDF(0, Secret, "key expansion" + session_hash,
+                        total_length)
+
+Note: Throughout this specification, the labels that are used with
+HKDF are NUL-terminated, so there is a NUL-byte in between the
+string "key expansion" and the session hash.
 
 where Secret is the relevant secret and session_hash is the value
-defined in {{the-session-hash}}.  The PRF is computed enough times to
-generate the necessary amount of data for the key_block, which is then
-partitioned as follows:
+defined in {{the-session-hash}}. The key_block is partitioned
+as follows:
 
        client_write_key[SecurityParameters.enc_key_length]
        server_write_key[SecurityParameters.enc_key_length]
@@ -1164,7 +1120,7 @@ peer certificate
 
 cipher spec
 : Specifies the authentication and key establishment algorithms,
-  the pseudorandom function (PRF) used to generate keying
+  the hash for use with HKDF to generate keying
   material, and the record protection algorithm (See
   {{the-security-parameters}} for formal definition.)
 
@@ -1775,7 +1731,7 @@ The cipher suite list, passed from the client to the server in the ClientHello
 message, contains the combinations of cryptographic algorithms supported by the
 client in order of the client's preference (favorite choice first). Each cipher
 suite defines a key exchange algorithm, a record protection algorithm (including
-secret key length) and a PRF. The server will select a cipher
+secret key length) and a hash to be used with HKDF. The server will select a cipher
 suite or, if no acceptable choices are presented, return a "handshake_failure"
 alert and close the connection. If the list contains cipher suites the server
 does not recognize, support, or wish to use, the server MUST ignore those
@@ -2816,10 +2772,7 @@ sent or received, starting at ClientHello and up to, but not
 including, this message, including the type and length fields of the
 handshake messages. This is a digest of the concatenation of all the
 Handshake structures (as defined in {{handshake-protocol}}) exchanged
-thus far. For the PRF defined in Section 5, the digest MUST be the
-Hash used as the basis for the PRF.  Any cipher suite which defines a
-different PRF MUST also define the Hash to use in this
-computation.
+thus far. The digest MUST be the Hash used as the basis for HKDF.
 
 > The context string for the signature is "TLS 1.3, server CertificateVerify". A
 hash of the handshake messages is signed rather than the messages themselves
@@ -2880,20 +2833,15 @@ Structure of this message:
 
 The verify_data value is computed as follows:
 
-                       
 verify_data
-:      PRF(finished_secret, finished_label, session_hash)
-           [0..verify_data_length-1];
+:      HKDF-Extract(finished_secret, finished_label + session_hash,
+                    verify_data_length)
 
 finished_label
 : For Finished messages sent by the client, the string
   "client finished".  For Finished messages sent by the server,
   the string "server finished".
 {:br }
-
-The finished_secret is computed as:
-
-         finished_secret = HKDF(SS, "finished_secret", session_hash)
 
 > In previous versions of TLS, the verify_data was always 12 octets long. In
 the current version of TLS, it depends on the cipher suite. Any cipher suite
@@ -3112,35 +3060,31 @@ mode (DHE, ECDHE, PSK, etc.) and is summarized in the table below:
 These shared secret values are used to generate cryptographic keys as
 shown below. 
 
-The diagram below shows the derivation process.
+The derivation process is as follows, where L denotes the length of
+the underlying hash function for HKDF.
 
-~~~
-                   0                           0
-                   |                           |
-Ephemeral ---->  HKDF-H                     HKDF-H    <-- Static ---+
-  Secret           |                           |          Secret    |
-                   |                           |                    |
-Handshake  <-------+---------+        +--------+-------> 0RTT       |
-Traffic                      |        |        |         Traffic    |
-Keys                         |        |        |         Keys       |  
-                             |        |        |                    |
-                             |        v        +-------> Finished   |
-                             +----> HKDF-H               Keys       |
-                                     |                              |
-                                     |
-                                     |                              |
-          Application   <------------+-----------------> Resumption |
-        Traffic Keys                 |                       Master-+
-                                     |                       Secret  
-                                     |
-           Exporter     <------------+
-            Master
-            Secret
-~~~
+   
+1. tmp1 = HKDF(0, SS, "intermediate1" + session_hash, L)
+   where session_hash includes solely the ClientHello (this is
+   necessary to allow for 0-RTT handshakes).
 
+2. finished_secret = HKDF(0, SS, "finished_secret" + session_hash, L)
+   where session_hash includes solely the ClientHello.
 
+3. tmp2 = HKDF(0, ES, "intermediate2" + session_hash, L) where
+   session_hash includes all messages up to and including the
+   ServerKeyShare.
 
+4. master_secret = HKDF(tmp2, tmp1, "master secret" + session_hash, L)
+   Where session_hash includes of all the handshake messages
+   except the Finisheds.
 
+5. resumption_master_secret = HKDF(0, master_secret,
+                                   "resumption_master_secret" + session_hash,
+                                   L)
+
+The traffic keys are computed from SS, ES, and master_secret as described
+in {{key-calculation}}.
 
 ###  The Session Hash
 
@@ -3181,7 +3125,7 @@ first flight, as it covers the client's Certificate and CertificateVerify.
 A conventional Diffie-Hellman computation is performed. The negotiated key (Z)
 is used as the shared_secret, and is used in the key schedule as
 specified above. Leading bytes of Z that contain all zero bits are stripped
-before it is used as the input to the PRF.
+before it is used as the input to HKDF.
 
 ### Elliptic Curve Diffie-Hellman
 
@@ -3370,12 +3314,10 @@ higher computational and communicational cost than anonymous key exchange, it
 may be in the interest of interoperability not to disable non-anonymous key
 exchange when the application layer is allowing anonymous key exchange.
 
-The PRFs SHALL be as follows:
-
-   o  For cipher suites ending with _SHA256, the PRF is the TLS PRF
+   o  For cipher suites ending with _SHA256, HKDF is used
       with SHA-256 as the hash function.
 
-   o  For cipher suites ending with _SHA384, the PRF is the TLS PRF
+   o  For cipher suites ending with _SH384, HKDF is used
       with SHA-384 as the hash function.
 
 New cipher suite values are been assigned by IANA as described in
@@ -3421,7 +3363,7 @@ end-entity certificate remain.
 # Cipher Suite Definitions
 
     Cipher Suite                          Key        Record
-                                          Exchange   Protection   PRF
+                                          Exchange   Protection   Hash
 
     TLS_NULL_WITH_NULL_NULL               NULL       NULL_NULL    N/A
     TLS_DHE_RSA_WITH_AES_128_GCM_SHA256   DHE_RSA    AES_128_GCM  SHA256
