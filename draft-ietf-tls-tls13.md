@@ -1110,10 +1110,6 @@ negotiated security parameters, and to report error conditions to each other.
 The Handshake Protocol is responsible for negotiating a session, which consists
 of the following items:
 
-session identifier
-: An arbitrary byte sequence chosen by the server to identify an
-  active or resumable session state.
-
 peer certificate
 : X509v3 {{RFC5280}} certificate of the peer.  This element of the state
   may be null.
@@ -1125,13 +1121,13 @@ cipher spec
   {{the-security-parameters}} for formal definition.)
 
 resumption master secret
-: 48-byte secret shared between the client and server.
+: a secret shared between the client and server that can be used
+  as a PSK in future connections.
 {:br }
 
 These items are then used to create security parameters for use by the record
 layer when protecting application data. Many connections can be instantiated
-using the same session through the resumption feature of the TLS Handshake
-Protocol.
+using the same session using a PSK established in an initial handshake.
 
 
 ##  Alert Protocol
@@ -1390,7 +1386,7 @@ public-key encryption techniques to generate shared secrets.
 The TLS Handshake Protocol involves the following steps:
 
 -  Exchange hello messages to agree on a protocol version,
-   algorithms, exchange random values, and check for session resumption.
+   algorithms, exchange random values.
 
 -  Exchange the necessary cryptographic parameters to allow the
   client and server to agree on shared secret values.
@@ -1427,7 +1423,7 @@ The basic TLS Handshake is shown in Figure 1, shown below:
        ClientHello               -------->
                                                        ServerHello
                                                     ServerKeyShare
-                                            {EncryptedExtensions*}
+                                             {EncryptedExtensions}
                                                     {Certificate*}
                                              {CertificateRequest*}
                                              {ServerConfiguration}
@@ -1476,6 +1472,7 @@ not necessary to establish the Cipher Suite. The server will then send
 its certificate in a Certificate message if it is to be authenticated.
 The server may optionally request a certificate from the client by
 sending a CertificateRequest message at this point.
+
 Finally, if the server is authenticated, it will send a CertificateVerify
 message which provides a signature over the entire handshake up to
 this point. This serves both to authenticate the server and to establish
@@ -1577,7 +1574,7 @@ reducing handshake latency, as shown below.
        ClientHello
        (Certificate*)
        (CertificateVerify*)
-       [Application Data]        -------->
+       ([Application Data])        -------->
                                                        ServerHello
                                                     ServerKeyShare
                                  <--------              {Finished}
@@ -1597,9 +1594,10 @@ replay protected between connections. Unless the server
 takes special measures outside those provided by TLS (See Section [TODO]),
 the server has no guarantee that the same 0-RTT data was not
 transmitted on multiple 0-RTT connections. However, 0-RTT data
-is protected against replay within a connection and 0-RTT data and
-ordinary TLS data can easily be discriminated.
-
+cannot be duplicated within a connection (i.e., the server will not
+process the same data twice for the same connection) and also
+cannot be sent as if it were ordinary TLS data.
+[[TODO: Need protection against 0-RTT truncation?]]
 
 ### Resumption and PSK
 
@@ -1611,14 +1609,14 @@ an (EC)DHE exchange in order to provide forward secrecy in combination
 with shared keys, or can use PSKs alone, at the cost of losing forward
 secrecy.
 
-TLS's PSK mode can also be used to eliminate the cost of publc key operations
+TLS's PSK mode can also be used to eliminate the cost of public key operations
 for repeated interactions between the same client/server pair: once
 a handshake has completed, the server can send the client a PSK identifier
 which corresponds to a key derived from the initial handshake. The
 client can then use that PSK in future handshakes; if the server accepts
 it, then the security context of the original connection is tied to the
 new connection. In TLS 1.2 and below, this functionality was provided
-by "session resumption" and "session tickets {{RFC4507}}. Both mechanisms
+by "session resumption" and "session tickets" {{RFC4507}}. Both mechanisms
 are obsoleted in TLS 1.3.
 
 The contents and significance of each message will be presented in detail in
@@ -1702,20 +1700,6 @@ random_bytes
 Note: Versions of TLS prior to TLS 1.3 used the top 32 bits of
 the Random value to encode the time since the UNIX epoch.
 
-Note:
-The ClientHello message includes a variable-length session identifier. If not
-empty, the value identifies a session between the same client and server whose
-security parameters the client wishes to reuse. The session identifier MAY be
-from an earlier connection, this connection, or from another currently active
-connection. The second option is useful if the client only wishes to update the
-random structures and derived values of a connection, and the third option
-makes it possible to establish several independent secure connections without
-repeating the full handshake protocol. These independent connections may occur
-sequentially or simultaneously; a SessionID becomes valid when the handshake
-negotiating it completes with the exchange of Finished messages and persists
-until it is removed due to aging or because a fatal error was encountered on a
-connection associated with the session. The actual contents of the SessionID
-are defined by the server.
 
 %%% Hello Messages
        opaque SessionID<0..32>;
@@ -1774,9 +1758,11 @@ random
 : A client-generated random structure.
 
 session_id
-: The ID of a session the client wishes to use for this connection.
-  This field is empty if no session_id is available, or if the
-  client wishes to generate new security parameters.
+: Versions of TLS prior to TLS 1.3 supported a session resumption
+  feature which has been merged with Pre-Shared Keys in this version
+  (see {{resumption-and-psk}}).
+  This field MUST be a zero length vector (i.e., a single zero byte
+  length field).
 
 cipher_suites
 : This is a list of the cryptographic options supported by the
@@ -1784,6 +1770,7 @@ cipher_suites
   session_id field is not empty (implying a session resumption
   request), this vector MUST include at least the cipher_suite from
   that session.  Values are defined in {{the-cipher-suite}}.
+  [[TODO: Need to clean up with resumption as PSK]].
 
 compression_methods
 : Versions of TLS before 1.3 supported compression and the list of
@@ -1827,7 +1814,6 @@ Structure of this message:
        struct {
            ProtocolVersion server_version;
            Random random;
-           SessionID session_id;
            CipherSuite cipher_suite;
            select (extensions_present) {
                case false:
@@ -1850,29 +1836,11 @@ random
 : This structure is generated by the server and MUST be
   generated independently of the ClientHello.random.
 
-session_id
-: This is the identity of the session corresponding to this
-  connection.  If the ClientHello.session_id was non-empty, the
-  server will look in its session cache for a match.  If a match is
-  found and the server is willing to establish the new connection
-  using the specified session state, the server will respond with
-  the same value as was supplied by the client.  This indicates a
-  resumed session and dictates that the parties must proceed
-  directly to the Finished messages.  Otherwise, this field will
-  contain a different value identifying the new session.  The server
-  may return an empty session_id to indicate that the session will
-  not be cached and therefore cannot be resumed.  If a session is
-  resumed, it must be resumed using the same cipher suite it was
-  originally negotiated with.  Note that there is no requirement
-  that the server resume any session even if it had formerly
-  provided a session_id.  Clients MUST be prepared to do a full
-  negotiation --- including negotiating new cipher suites --- during
-  any handshake.
-
 cipher_suite
 : The single cipher suite selected by the server from the list in
   ClientHello.cipher_suites.  For resumed sessions, this field is
   the value from the state of the session being resumed.
+  [[TODO: interaction with PSK.]]
 
 extensions
 : A list of extensions.  Note that only extensions offered by the
@@ -1889,9 +1857,10 @@ extensions
 When this message will be sent:
 
 > The server will send this message in response to a ClientHello
-message when it was able to find an acceptable set of algorithms but
+message when it was able to find an acceptable set of algorithms and
+groups that are mutually supported, but
 the client's ClientKeyShare did not contain an acceptable
-offer.  If it cannot find such a match, it will respond with a
+offer. If it cannot find such a match, it will respond with a
 "handshake_failure" alert.
 
 Structure of this message:
@@ -1937,7 +1906,13 @@ The extension format is:
        } Extension;
 
        enum {
-           signature_algorithms(13), early_data(TBD), (65535)
+           signature_algorithms(13), 
+           early_data(TBD),
+           supported_groups(TBD),
+           known_configuration(TBD),
+           pre_shared_key(TBD)
+           client_key_shares(TBD)
+           (65535)
        } ExtensionType;
 
 Here:
@@ -2182,7 +2157,7 @@ must consider the supported groups in both cases.
 
 The ClientKeyShare extension MUST be provided by the client if it
 offers any cipher suites that involve asymmetric (currently DHE or
-ECDHE) key exchange.  It ontains the client's cryptographic parameters
+ECDHE) key exchange.  It contains the client's cryptographic parameters
 for zero or more key establishment methods.
 
 Meaning of this message:
@@ -2297,18 +2272,11 @@ identifier
 
 {:br }
 
-This extension comes in two flavors:
-
-- An indication of a complete configuration (cipher suites,
-  extensions, etc.)
-
 A client which wishes to reuse a known configuration MAY supply a
 single KnownConfigurationExtension value which indicates the known
 configuration it desires to use. It is a fatal error to supply more
-than one extension.
-
-A server which wishes to use the key echoes the extension
-in its ServerHello.
+than one extension. A server which wishes to use the key replies with
+an empty extension in its ServerHello.
 
 When the client and server mutually agree upon a known configuration via this
 mechanism, then the Static Secret (SS) is computed based on the server's (EC)DHE
@@ -3029,7 +2997,6 @@ The TLS handshake establishes secret keying material which is then used
 to protect traffic. This keying material is derived from two input
 secret values:
 
-~~~
 Ephemeral Secret (ES): A secret which is derived from fresh (EC)DHE
    shares for this connection. Keying material derived from ES is
    intended to be forward secure (with the exception of pre-shared
@@ -3042,7 +3009,7 @@ Static Secret (SS): A secret which may be derived from static or
 The exact source of each of these secrets depends on the operational
 mode (DHE, ECDHE, PSK, etc.) and is summarized in the table below:
 
-
+~~~
     Key Exchange            Static Secret (SS)    Ephemeral Secret (ES)
     ------------            ------------------    ---------------------
     (EC)DHE                   Client ephemeral         Client ephemeral
@@ -3077,11 +3044,14 @@ the underlying hash function for HKDF.
 
 4. master_secret = HKDF(tmp2, tmp1, "master secret" + session_hash, L)
    Where session_hash includes of all the handshake messages
-   except the Finisheds.
+   except the Finished messages.
 
 5. resumption_master_secret = HKDF(0, master_secret,
                                    "resumption_master_secret" + session_hash,
                                    L)
+   Where session_hash includes of all the handshake messages
+   except the Finished messages.
+  
 
 The traffic keys are computed from SS, ES, and master_secret as described
 in {{key-calculation}}.
@@ -3091,7 +3061,7 @@ in {{key-calculation}}.
 When a handshake takes place, we define
 
        session_hash = Hash(
-                           Hash(handshake_messages),
+                           Hash(handshake_messages) ||
                            Hash(configuration)
                           )
 
