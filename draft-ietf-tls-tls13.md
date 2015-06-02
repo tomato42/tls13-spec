@@ -3028,7 +3028,7 @@ be used with DSA.
 
 After the server has received the client Finished message, it MAY send
 a NewSessionTicket message. This message creates a pre-shared key
-(PSK) binding between the Resumption Master Secret and the ticket
+(PSK) binding between the resumption master secret and the ticket
 label. The client MAY use this PSK for future handshakes by including
 it in the Pre-Shared Key Extension in its ClientHello
 ({{pre-shared-key-extension}}) and supplying a suitable PSK cipher
@@ -3075,8 +3075,7 @@ cipher_suite selected by the server and revealed in the ServerHello
 message. The random values are exchanged in the hello messages. All
 that remains is to calculate the key schedule.
 
-
-##  Computing the Master Secrets
+## Key Schedule
 
 The TLS handshake establishes secret keying material which is then used
 to protect traffic. This keying material is derived from two input
@@ -3110,8 +3109,8 @@ mode (DHE, ECDHE, PSK, etc.) and is summarized in the table below:
                                                     w/ server ephemeral
 ~~~
 
-These shared secret values are used to generate master secret values as shown
-below. 
+These shared secret values are used to generate cryptographic keys as
+shown below. 
 
 The diagram below shows the derivation process.
 
@@ -3128,6 +3127,7 @@ Keys                         |        |        |         Keys       |
                              |        v        +-------> Finished   |
                              +----> HKDF-H               Keys       |
                                      |                              |
+                                     |
                                      |                              |
           Application   <------------+-----------------> Resumption |
         Traffic Keys                 |                       Master-+
@@ -3664,7 +3664,7 @@ expired or been revoked.
 more after Hugo's changes.]]
 The general goal of the key exchange process is to create a master_secret
 known to the communicating parties and not to attackers (see
-{{computing-the-master-secrets}}). The master_secret is required to generate the
+{{key-schedule}}). The master_secret is required to generate the
 Finished messages and record protection keys (see {{server-finished}} and
 {{key-calculation}}). By sending a correct Finished message, parties thus prove
 that they know the correct master_secret.
