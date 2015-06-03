@@ -1554,7 +1554,8 @@ During an initial handshake, the client can provide a server
 configuration containing a long-term (EC)DH share. On future
 connections, the client can indicate to the server that it knows the
 server's configuration and if that configuration is valid the server
-need not send either a Certificate or CertificateVerify message. This
+need not send either a Certificate or CertificateVerify message (provided
+that a new configuration is not supplied in this handshake). This
 optimization allows the server to amortize the transmission of these
 messages and the server's signature over multiple handshakes, thus
 reducing the server's computational cost for cipher suites where
