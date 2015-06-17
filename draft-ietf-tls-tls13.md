@@ -790,6 +790,8 @@ wish to take steps (padding, cover traffic) to minimize information leakage.
 
 ##  Connection States
 
+[[TODO: I plan to totally rewrite or remove this. IT seems like just cruft.]]
+
 A TLS connection state is the operating environment of the TLS Record
 Protocol.  It specifies a record protection algorithm and its
 parameters as well as the record protection keys and IVs for the
@@ -892,12 +894,13 @@ cipher state
 sequence number
 : Each connection state contains a sequence number, which is
   maintained separately for read and write states.  The sequence
-  number MUST be set to zero whenever a connection state is made the
-  active state.  Sequence numbers are of type uint64 and MUST NOT
-  exceed 2^64-1.  Sequence numbers do not wrap.  If a TLS
+  number is set to zero at the beginning of a connection and
+  incremented by one thereafter. Note that this is a change from
+  previous versions of TLS.  Sequence numbers are of type uint64 and
+  MUST NOT exceed 2^64-1.  Sequence numbers do not wrap.  If a TLS
   implementation would need to wrap a sequence number, it MUST
-  terminate the connection.  A sequence number is incremented after each
-  record: specifically, the first record transmitted under a
+  terminate the connection.  A sequence number is incremented after
+  each record: specifically, the first record transmitted under a
   particular connection state MUST use sequence number 0.
 {:br }
 
@@ -992,6 +995,8 @@ type
 
 record_version
 : The record_version field is identical to TLSPlaintext.record_version and is always { 3, 1 }.
+  Note that the handshake protocol including the Client and ServerHello messages authenticates
+  the protocol version, so this value is redundant.
 
 length
 : The length (in bytes) of the following TLSCiphertext.fragment.
@@ -1193,7 +1198,9 @@ close_notify
 {:br }
 
 Either party MAY initiate a close by sending a "close_notify" alert. Any data
-received after a closure alert is ignored.
+received after a closure alert is ignored. If a transport-level close is
+received prior to a close_notify, the receiver cannot know that all the
+data that was sent has been received. 
 
 Unless some other fatal alert has been transmitted, each party is required to
 send a "close_notify" alert before closing the write side of the connection. The
@@ -1425,9 +1432,9 @@ The basic TLS Handshake is shown in Figure 1, shown below:
                                                        ServerHello
                                                     ServerKeyShare
                                              {EncryptedExtensions}
+                                             {ServerConfiguration*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                             {ServerConfiguration*}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1523,9 +1530,9 @@ ClientKeyShare, as shown in Figure 2:
                                                        ServerHello
                                                     ServerKeyShare
                                             {EncryptedExtensions*}
+                                            {ServerConfiguration*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                            {ServerConfiguration*}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1637,9 +1644,9 @@ a PSK and the second uses it:
                                                        ServerHello
                                                     ServerKeyShare
                                              {EncryptedExtensions}
+                                             {ServerConfiguration*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                             {ServerConfiguration*}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1682,7 +1689,7 @@ processed and transmitted as specified by the current active session state.
 %%% Handshake Protocol
        enum {
            reserved(0), client_hello(1), server_hello(2),
-           hello_retry_request(6),
+           session_ticket(4), hello_retry_request(6),
            server_key_share(7), certificate(11), reserved(12),
            certificate_request(13), server_configuration(14),
            certificate_verify(15), reserved(16), finished(20), (255)
@@ -1696,9 +1703,9 @@ processed and transmitted as specified by the current active session state.
                case server_hello:        ServerHello;
                case hello_retry_request: HelloRetryRequest;
                case server_key_share:    ServerKeyShare;
+               case server_configuration:ServerConfiguration;
                case certificate:         Certificate;
                case certificate_request: CertificateRequest;
-               case server_configuration:ServerConfiguration;
                case certificate_verify:  CertificateVerify;
                case finished:            Finished;
                case session_ticket:      NewSessionTicket;
@@ -1751,15 +1758,6 @@ the Random value to encode the time since the UNIX epoch.
 
 
 %%% Hello Messages
-       opaque SessionID<0..32>;
-
-Warning: Because the SessionID is transmitted without confidentiality or
-integrity protection, servers MUST NOT place confidential information in session
-identifiers or let the contents of fake session identifiers cause any breach of
-security. (Note that the content of the handshake as a whole, including the
-SessionID, is protected by the Finished messages exchanged at the end of the
-handshake.)
-
 The cipher suite list, passed from the client to the server in the ClientHello
 message, contains the combinations of cryptographic algorithms supported by the
 client in order of the client's preference (favorite choice first). Each cipher
@@ -2524,7 +2522,7 @@ When this message will be sent:
 > The server MUST send a Certificate message whenever the agreed-upon
 key exchange method uses certificates for authentication (this
 includes all key exchange methods defined in this document except
-DH_anon), and unless the KnownKeyExtension is used. This message will
+DH_anon), unless the KnownKeyExtension is used. This message will
 always immediately follow either the EncryptedExtensions message if
 one is sent or the ServerKeyShare message.
 
@@ -2851,8 +2849,8 @@ Structure of this message:
 The verify_data value is computed as follows:
 
 verify_data
-:      HKDF-Extract(finished_secret, finished_label + session_hash,
-                    verify_data_length)
+:      HMAC(finished_secret, finished_label + session_hash)
+       where HMAC uses the Hash algorithm for the handshake.
 
 finished_label
 : For Finished messages sent by the client, the string
@@ -2861,29 +2859,8 @@ finished_label
 {:br }
 
 > In previous versions of TLS, the verify_data was always 12 octets long. In
-the current version of TLS, it depends on the cipher suite. Any cipher suite
-which does not explicitly specify verify_data_length has a verify_data_length
-equal to 12. This includes all existing cipher suites. Note that this
-representation has the same encoding as with previous versions. Future cipher
-suites MAY specify other lengths but such length MUST be at least 12 bytes.
-
-handshake_messages
-
-: All of the data from all messages in this handshake (not
-  including any HelloRequest messages) up to, but not including,
-  this message.  This is only data visible at the handshake layer
-  and does not include record layer headers.  This is the
-  concatenation of all the Handshake structures as defined in
-  {{handshake-protocol}}, exchanged thus far.
-{:br }
-
-The value handshake_messages includes all handshake messages starting at
-ClientHello up to, but not including, this Finished message. This may be
-different from handshake_messages in {{server-certificate-verify}} or
-{{client-certificate-verify}}. Also, the handshake_messages
-for the Finished message sent by the client will be different from that for the
-Finished message sent by the server, because the one that is sent second will
-include the prior one.
+the current version of TLS, it is the size of the HMAC output for the
+Hash used for the handshake.
 
 Note: Alerts and any other record types are not handshake messages
 and are not included in the hash computations. Also, HelloRequest
@@ -3119,7 +3096,7 @@ handshake_messages
   received, starting at ClientHello up to the present time, with the
   exception of the Finished message, including the type and length
   fields of the handshake messages. This is the concatenation of all the
-  exchanged Handshake structures.
+  exchanged Handshake structures in plaintext form.
 
 configuration
 : When the known_configuration extension is in use ({{known-configuration-extension}},
