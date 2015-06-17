@@ -1933,11 +1933,18 @@ same meanings as their corresponding values in the ServerHello. The
 server SHOULD send only the extensions necessary for the client to
 generate a correct ClientHello pair.
 
-Upon receipt of a HelloRetryRequest, the client MUST send a new
-ClientHello with a new ClientKeyShare extension to the server. The ClientKeyShare MUST
-contain both the groups in the original ClientKeyShare as well as a
-ClientKeyShareOffer consistent with the "selected_group" field.
-I.e., it MUST be a superset of the previous ClientKeyShareOffer.
+Upon receipt of a HelloRetryRequest, the client MUST first verify
+that the "selected_group" field does not identify a group which
+was not in the original ClientHello. If it was present, then
+the client MUST abort the handshake with a fatal "handshake_failure"
+alert. Clients SHOULD also abort with "handshake_failure" in response to any second
+HelloRetryRequest which was sent in the same connection (i.e.,
+where the ClientHello was itself in response to a HelloRetryRequest).
+
+Otherwise, the client MUST send a ClientHello with a new
+ClientKeyShare extension to the server. The ClientKeyShare MUST append
+a new ClientKeyShareOffer which is consistent with the
+"selected_group" field to the groups in the original ClientKeyShare.
 
 Upon re-sending the ClientHello and receiving the
 server's ServerHello/ServerKeyShare, the client MUST verify that
@@ -2236,7 +2243,8 @@ key_exchange
        } ClientKeyShare;
 
 offers
-: A list of ClientKeyShareOffer values.
+: A list of ClientKeyShareOffer values in descending order of
+client preference.
 {:br }
 
 Clients may offer an arbitrary number of ClientKeyShareOffer
@@ -3028,7 +3036,8 @@ lookup key or a self-encrypted value. Section 4 of {{RFC4507}}
 describes a recommended ticket construction mechanism.
 
 [[TODO: Should we require that tickets be bound to the existing
-symmetric cipher suite.??]
+symmetric cipher suite. See the TODO above about early_data and
+PSK.??]
 
 
 #  Cryptographic Computations
@@ -3101,6 +3110,12 @@ the underlying hash function for HKDF.
                                    L)
    Where handshake_hash includes of all the handshake messages
    except the Finished messages.
+
+6. exporter_master_secret = HKDF(tmp2, tmp1, "exporter master secret" +
+                                 handshake_hash, L)
+
+   Where handshake_hash includes of all the handshake messages
+   except the Finished messages.
   
 
 The traffic keys are computed from SS, ES, and master_secret as described
@@ -3111,9 +3126,9 @@ in {{key-calculation}}.
 When a handshake takes place, we define
 
        handshake_hash = Hash(
-                           Hash(handshake_messages) ||
-                           Hash(configuration)
-                          )
+                             Hash(handshake_messages) ||
+                             Hash(configuration)
+                            )
 
 handshake_messages
 : All handshake messages sent or
