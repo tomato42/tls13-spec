@@ -1477,11 +1477,12 @@ encrypted using that key.
 Next, the server will send an EncryptedExtensions
 message which contains a response to any client's extensions which are
 not necessary to establish the Cipher Suite. The server will then send
-its certificate in a Certificate message if it is to be authenticated.
-The server may optionally request a certificate from the client by
+its certificate in a Certificate message if it is authenticating
+via a signing key. The server may optionally request a certificate from the client by
 sending a CertificateRequest message at this point.
 
-Finally, if the server is authenticated, it will send a CertificateVerify
+Finally, if the server is authenticating with a signing key,
+it will send a CertificateVerify
 message which provides a signature over the entire handshake up to
 this point. This serves both to authenticate the server and to establish
 the integrity of the negotiation. Finally, the server sends a Finished
@@ -1505,13 +1506,14 @@ certificate. Finally, the client sends the Finished message.
 
 At this point, the handshake is complete, and the client and server
 may exchange application layer data, which is protected using a new
-set of keys derived from both the Ephemeral Secret and the handshake
+set of keys derived from the Ephemeral Secret, the Static Secret,
+and the handshake
 transcript (See {{I-D.ietf-tls-session-hash}} for the security
 rationale for this.)
 
 Application data MUST NOT be sent prior to the Finished message.
 [[TODO: can we make this clearer and more clearly match the text above
-about server-side False Start.]]
+about letting the server send before the client's second flight.]]
 
 If the client has not provided an appropriate ClientKeyShare (e.g. it
 includes only DHE or ECDHE groups unacceptable or unsupported by the
@@ -1612,7 +1614,7 @@ cannot be sent as if it were ordinary TLS data. Finally, note that
 if the server key is compromised, and client authentication is
 used, then the attacker can impersonate the client to the server
 (as it knows the traffic key).
-[[TODO: Need protection against 0-RTT truncation?]]
+[[TODO: Explain how sequence numbers provide protection against 0-RTT truncation.]]
 
 ### Resumption and PSK
 
@@ -2203,7 +2205,7 @@ must consider the supported groups in both cases.
 ####  Client Key Share
 
 The ClientKeyShare extension MUST be provided by the client if it
-offers any cipher suites that involve asymmetric (currently DHE or
+offers any cipher suites that involve non-PSK (currently DHE or
 ECDHE) key exchange.  It contains the client's cryptographic parameters
 for zero or more key establishment methods.
 
@@ -2329,7 +2331,9 @@ When the client and server mutually agree upon a known configuration via this
 mechanism, then the Static Secret (SS) is computed based on the server's (EC)DHE
 key from the identified configuration and the client's key found in the
 ClientKeyShare. If no key from an acceptable group is in the ClientKeyShare,
-the server MUST reject the known_configuration extension.
+the server MUST reject the known_configuration extension. When this
+mechanism is used, the server MUST NOT send a Certificate/CertificateVerify
+message unless the ServerConfiguration message is also sent.
 
 When the known_configuration data extension is in use, the handshake hash
 is extended to include the server's configuration data and certificate
@@ -2343,20 +2347,28 @@ pre-shared key to be used with a given handshake in association
 with a PSK or (EC)DHE-PSK cipher suite (see {{RFC4279}} for background).
 
 %%% Hello Messages
+
+          opaque psk_identity<0..2^16-1>;
+
           struct {
-              opaque psk_identity<0..2^16-1>;
+              psk_identity identities<0..2^16-1>;
           } PreSharedKeyExtension;
 
 identifier
 : An opaque label for the pre-shared key.
 
 When the client offers a PSK cipher suite, it MUST also supply a
-PreSharedKeyExtension to indicate the PSK to be used. If no
+PreSharedKeyExtension to indicate the PSK(s) to be used. If no
 such extension is present, the server MUST NOT negotiate
-a PSK cipher suite.
+a PSK cipher suite. If no suitable identity is present, the server
+MUST NOT negotiate a PSK cipher suite.
 
-The server MUST not send this extension: selection of a PSK
-cipher suite indicates that the key was used.
+If the server selects a PSK cipher suite, it MUST send a
+PreSharedKeyExtension with the identity that it selected.
+The client MUST verify that the server has selected one of
+the identities that the client supplied. If any other identity
+is returned, the client MUST generate a fatal "handshake_failure"
+alert.
 
 
 ##### Early Data Indication
@@ -2432,6 +2444,17 @@ not the the 0-RTT cryptographic transforms, including:
 
 What's here now needs a lot of cleanup before it is clear
 and correct.]]
+
+[[TODO: We should really allow early_data to be used with
+PSKs. In order to make this work, we need to either:
+
+(a) explicitly signal the entire cryptographic parameter set
+(b) tie it to the PSK identifier (as is presently done in the
+    known_configuration extension).
+
+These two should match.
+]]
+
 
 
 ###### Replay Properties
@@ -2522,7 +2545,7 @@ When this message will be sent:
 > The server MUST send a Certificate message whenever the agreed-upon
 key exchange method uses certificates for authentication (this
 includes all key exchange methods defined in this document except
-DH_anon), unless the KnownKeyExtension is used. This message will
+DH_anon and PSK), unless the KnownKeyExtension is used. This message will
 always immediately follow either the EncryptedExtensions message if
 one is sent or the ServerKeyShare message.
 
@@ -2824,8 +2847,9 @@ https://github.com/tlswg/tls13-spec/issues/59]]
 
 When this message will be sent:
 
-> The Server's Finished message is the final message sent by the server
-and indicates that the key exchange and authentication processes were successful.
+> The Server's Finished message is the final message sent by the
+server and is essential for providing authentication of the server
+side of the handshake and computed keys.
 
 
 Meaning of this message:
