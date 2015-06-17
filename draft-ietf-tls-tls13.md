@@ -1085,15 +1085,15 @@ When keys are generated, the current secret is used as an entropy source.
 
 To generate the key material, compute
 
-       key_block = HKDF(0, Secret, "key expansion" + session_hash,
+       key_block = HKDF(0, Secret, "key expansion" + handshake_hash,
                         total_length)
 
 Note: Throughout this specification, the labels that are used with
 HKDF are NUL-terminated, so there is a NUL-byte in between the
-string "key expansion" and the session hash.
+string "key expansion" and the handshake hash.
 
-where Secret is the relevant secret and session_hash is the value
-defined in {{the-session-hash}}. The key_block is partitioned
+where Secret is the relevant secret and handshake_hash is the value
+defined in {{the-handshake-hash}}. The key_block is partitioned
 as follows:
 
        client_write_key[SecurityParameters.enc_key_length]
@@ -1420,13 +1420,14 @@ The basic TLS Handshake is shown in Figure 1, shown below:
 
        Client                                               Server
 
-       ClientHello               -------->
+       ClientHello
+         + ClientKeyShare        -------->
                                                        ServerHello
                                                     ServerKeyShare
                                              {EncryptedExtensions}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                             {ServerConfiguration}
+                                             {ServerConfiguration*}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1513,16 +1514,18 @@ ClientKeyShare, as shown in Figure 2:
 
        Client                                               Server
 
-       ClientHello               -------->
+       ClientHello              
+         + ClientKeyShare        -------->
                                  <--------       HelloRetryRequest
 
-       ClientHello               -------->
+       ClientHello
+         + ClientKeyShare        -------->
                                                        ServerHello
                                                     ServerKeyShare
                                             {EncryptedExtensions*}
                                                     {Certificate*}
                                              {CertificateRequest*}
-                                             {ServerConfiguration}
+                                            {ServerConfiguration*}
                                               {CertificateVerify*}
                                  <--------              {Finished}
        {Certificate*}
@@ -1573,6 +1576,7 @@ reducing handshake latency, as shown below.
        Client                                               Server
 
        ClientHello
+         + ClientKeyShare
        (Certificate*)
        (CertificateVerify*)
        ([Application Data])        -------->
@@ -1597,7 +1601,10 @@ the server has no guarantee that the same 0-RTT data was not
 transmitted on multiple 0-RTT connections. However, 0-RTT data
 cannot be duplicated within a connection (i.e., the server will not
 process the same data twice for the same connection) and also
-cannot be sent as if it were ordinary TLS data.
+cannot be sent as if it were ordinary TLS data. Finally, note that
+if the server key is compromised, and client authentication is
+used, then the attacker can impersonate the client to the server
+(as it knows the traffic key).
 [[TODO: Need protection against 0-RTT truncation?]]
 
 ### Resumption and PSK
@@ -1620,8 +1627,49 @@ new connection. In TLS 1.2 and below, this functionality was provided
 by "session resumption" and "session tickets" {{RFC4507}}. Both mechanisms
 are obsoleted in TLS 1.3.
 
+Figure 4 shows a pair of handshakes in which the first establishes
+a PSK and the second uses it:
+
+       Client                                               Server
+
+       ClientHello
+         + ClientKeyShare       -------->
+                                                       ServerHello
+                                                    ServerKeyShare
+                                             {EncryptedExtensions}
+                                                    {Certificate*}
+                                             {CertificateRequest*}
+                                             {ServerConfiguration*}
+                                              {CertificateVerify*}
+                                 <--------              {Finished}
+       {Certificate*}
+       {CertificateVerify*}
+       {Finished}                -------->
+                                 <--------      {NewSessionTicket}
+       [Application Data]        <------->      [Application Data]
+
+
+
+       ClientHello
+         + ClientKeyShare,
+           PreSharedKey          -------->
+                                                       ServerHello
+                                                     +PreSharedKey
+                                 <--------              {Finished}
+       {Certificate*}
+       {Finished}                -------->
+                                 <--------      {NewSessionTicket}
+       [Application Data]        <------->      [Application Data]
+
+
+                Figure 3.  Message flow for PSK-based resumption
+
+Note that the client supplies a ClientKeyShare to the server as well, which
+allows the server to reject resumption and fall back to a full handshake.
+                
 The contents and significance of each message will be presented in detail in
 the following sections.
+
 
 ##  Handshake Protocol
 
@@ -2285,9 +2333,9 @@ key from the identified configuration and the client's key found in the
 ClientKeyShare. If no key from an acceptable group is in the ClientKeyShare,
 the server MUST reject the known_configuration extension.
 
-When the known_configuration data extension is in use, the session hash
+When the known_configuration data extension is in use, the handshake hash
 is extended to include the server's configuration data and certificate
-(see {{the-session-hash}}).
+(see {{the-handshake-hash}}).
 
 
 ##### Pre-Shared Key Extension
@@ -2378,7 +2426,7 @@ ignore the extension.
 [[OPEN ISSUE: This just specifies the signaling for 0-RTT but
 not the the 0-RTT cryptographic transforms, including:
 
-- What is in the session hash (including potentially some
+- What is in the handshake hash (including potentially some
   speculative data from the server.)
 - What is signed in the client's CertificateVerify
 - Whether we really want the Finished to not include the
@@ -2736,7 +2784,7 @@ Structure of this message:
             }
        } CertificateVerify;
 
-> Where session_hash is as described in {{the-session-hash}
+> Where session_hash is as described in {{the-handshake-hash}
 sent or received, starting at ClientHello and up to, but not
 including, this message, including the type and length fields of the
 handshake messages. This is a digest of the concatenation of all the
@@ -3032,36 +3080,36 @@ The derivation process is as follows, where L denotes the length of
 the underlying hash function for HKDF.
 
    
-1. tmp1 = HKDF(0, SS, "intermediate1" + session_hash, L)
-   where session_hash includes solely the ClientHello (this is
+1. tmp1 = HKDF(0, SS, "intermediate1" + handshake_hash, L)
+   where handshake_hash includes solely the ClientHello (this is
    necessary to allow for 0-RTT handshakes).
 
-2. finished_secret = HKDF(0, SS, "finished_secret" + session_hash, L)
-   where session_hash includes solely the ClientHello.
+2. finished_secret = HKDF(0, SS, "finished_secret" + handshake_hash, L)
+   where handshake_hash includes solely the ClientHello.
 
-3. tmp2 = HKDF(0, ES, "intermediate2" + session_hash, L) where
-   session_hash includes all messages up to and including the
+3. tmp2 = HKDF(0, ES, "intermediate2" + handshake_hash, L) where
+   handshake_hash includes all messages up to and including the
    ServerKeyShare.
 
-4. master_secret = HKDF(tmp2, tmp1, "master secret" + session_hash, L)
-   Where session_hash includes of all the handshake messages
+4. master_secret = HKDF(tmp2, tmp1, "master secret" + handshake_hash, L)
+   Where handshake_hash includes of all the handshake messages
    except the Finished messages.
 
 5. resumption_master_secret = HKDF(0, master_secret,
-                                   "resumption_master_secret" + session_hash,
+                                   "resumption_master_secret" + handshake_hash,
                                    L)
-   Where session_hash includes of all the handshake messages
+   Where handshake_hash includes of all the handshake messages
    except the Finished messages.
   
 
 The traffic keys are computed from SS, ES, and master_secret as described
 in {{key-calculation}}.
 
-###  The Session Hash
+###  The Handshake Hash
 
 When a handshake takes place, we define
 
-       session_hash = Hash(
+       handshake_hash = Hash(
                            Hash(handshake_messages) ||
                            Hash(configuration)
                           )
@@ -3086,6 +3134,10 @@ ServerHello, and ServerKeyShare, and HelloRetryRequest (if any)
 (though see [https://github.com/tlswg/tls13-spec/issues/104]).
 At the point where the master secret is derived, it includes every
 handshake message, with the exception of the Finished messages.
+This final value of the handshake hash is referred to as the
+"session hash" because it contains all the handshake messages
+required to establish the session.
+
 Note that if client authentication is not used, then the session
 hash is complete at the point when the server has sent its first
 flight. Otherwise, it is only complete when the client has sent its
