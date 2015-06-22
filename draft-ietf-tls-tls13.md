@@ -815,7 +815,7 @@ connection end
 Hash algorithm
 
 : An algorithm used to generate keys from the appropriate secret (see
-  {{key-schedule}} and {{key-calculation}}).
+  {{key-schedule}} and {{traffic-key-calculation}}).
 
 record protection algorithm
 
@@ -880,7 +880,7 @@ items:
 
 The client write parameters are used by the server when receiving and
 processing records and vice versa. The algorithm used for generating these
-items from the security parameters is described in {{key-calculation}}.
+items from the security parameters is described in {{traffic-key-calculation}}.
 
 Once the security parameters have been set and the keys have been generated,
 the connection states can be instantiated by making them the current states.
@@ -1068,43 +1068,6 @@ As a special case, we define the NULL_NULL AEAD cipher which is simply
 the identity operation and thus provides no security. This cipher
 MUST ONLY be used with the initial TLS_NULL_WITH_NULL_NULL cipher suite.
 
-
-##  Key Calculation
-
-[[OPEN ISSUE: This needs to be revised. See https://github.com/tlswg/tls13-spec/issues/5]]
-The Record Protocol requires an algorithm to generate keys required by the
-current connection state (see {{the-security-parameters}}) from the security
-parameters provided by the handshake protocol.
-
-The relevant secret is expanded into a sequence of secure bytes, which
-is then split to a client write encryption key and a server write
-encryption key. Each of these is generated from the byte sequence in
-that order. Unused values are empty.
-
-When keys are generated, the current secret is used as an entropy source.
-
-* For handshake records, this means the ephemeral secret (ES)
-* For early handshake and application data records, this means the
-  static secret (SS).
-* For ordinary application data records, this means the master secret.
-
-To generate the key material, compute
-
-       key_block = HKDF(0, Secret, "key expansion" + handshake_hash,
-                        total_length)
-
-Note: Throughout this specification, the labels that are used with
-HKDF are NUL-terminated, so there is a NUL-byte in between the
-string "key expansion" and the handshake hash.
-
-where Secret is the relevant secret and handshake_hash is the value
-defined in {{the-handshake-hash}}. The key_block is partitioned
-as follows:
-
-       client_write_key[SecurityParameters.enc_key_length]
-       server_write_key[SecurityParameters.enc_key_length]
-       client_write_IV[SecurityParameters.iv_length]
-       server_write_IV[SecurityParameters.iv_length]
 
 #  The TLS Handshaking Protocols
 
@@ -3119,7 +3082,44 @@ the underlying hash function for HKDF.
   
 
 The traffic keys are computed from SS, ES, and master_secret as described
-in {{key-calculation}}.
+in {{traffic-key-calculation}}.
+
+## Traffic Key Calculation
+
+[[OPEN ISSUE: This needs to be revised. See https://github.com/tlswg/tls13-spec/issues/5]]
+The Record Protocol requires an algorithm to generate keys required by the
+current connection state (see {{the-security-parameters}}) from the security
+parameters provided by the handshake protocol.
+
+The relevant secret is expanded into a sequence of secure bytes, which
+is then split to a client write encryption key and a server write
+encryption key. Each of these is generated from the byte sequence in
+that order. Unused values are empty.
+
+When keys are generated, the current secret is used as an entropy source.
+
+* For handshake records, this means the ephemeral secret (ES)
+* For early handshake and application data records, this means the
+  static secret (SS).
+* For ordinary application data records, this means the master secret.
+
+To generate the key material, compute
+
+       key_block = HKDF(0, Secret, "key expansion" + handshake_hash,
+                        total_length)
+
+Note: Throughout this specification, the labels that are used with
+HKDF are NUL-terminated, so there is a NUL-byte in between the
+string "key expansion" and the handshake hash.
+
+where Secret is the relevant secret and handshake_hash is the value
+defined in {{the-handshake-hash}}. The key_block is partitioned
+as follows:
+
+       client_write_key[SecurityParameters.enc_key_length]
+       server_write_key[SecurityParameters.enc_key_length]
+       client_write_IV[SecurityParameters.iv_length]
+       server_write_IV[SecurityParameters.iv_length]
 
 ###  The Handshake Hash
 
@@ -3647,7 +3647,7 @@ The general goal of the key exchange process is to create a master_secret
 known to the communicating parties and not to attackers (see
 {{key-schedule}}). The master_secret is required to generate the
 Finished messages and record protection keys (see {{server-finished}} and
-{{key-calculation}}). By sending a correct Finished message, parties thus prove
+{{traffic-key-calculation}}). By sending a correct Finished message, parties thus prove
 that they know the correct master_secret.
 
 ####  Anonymous Key Exchange
