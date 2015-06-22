@@ -3052,74 +3052,79 @@ shown below.
 The derivation process is as follows, where L denotes the length of
 the underlying hash function for HKDF.
 
+Note: Throughout this specification, the labels that are used with
+HKDF are NUL-terminated, so there is a NUL-byte in between the
+string "key expansion" and the handshake hash.
    
-1. tmp1 = HKDF(0, SS, "intermediate1" + handshake_hash, L)
+1. xSS = HKDF(0, SS, "intermediate1" + handshake_hash, L)
    where handshake_hash includes solely the ClientHello (this is
    necessary to allow for 0-RTT handshakes).
 
 2. finished_secret = HKDF(0, SS, "finished_secret" + handshake_hash, L)
    where handshake_hash includes solely the ClientHello.
 
-3. tmp2 = HKDF(0, ES, "intermediate2" + handshake_hash, L) where
+3. xES = HKDF(0, ES, "intermediate2" + handshake_hash, L) where
    handshake_hash includes all messages up to and including the
    ServerKeyShare.
 
-4. master_secret = HKDF(tmp2, tmp1, "master secret" + handshake_hash, L)
-   Where handshake_hash includes of all the handshake messages
-   except the Finished messages.
-
-5. resumption_master_secret = HKDF(0, master_secret,
+4. resumption_master_secret = HKDF(xSS, xES,
                                    "resumption_master_secret" + handshake_hash,
                                    L)
    Where handshake_hash includes of all the handshake messages
    except the Finished messages.
 
-6. exporter_master_secret = HKDF(tmp2, tmp1, "exporter master secret" +
+5. exporter_master_secret = HKDF(xSS, xES, "exporter master secret" +
                                  handshake_hash, L)
 
    Where handshake_hash includes of all the handshake messages
    except the Finished messages.
   
+The traffic keys are computed from SS, ES, xSS, and xES, as described 
+in {{traffic-key-calculation}} below.
 
-The traffic keys are computed from SS, ES, and master_secret as described
-in {{traffic-key-calculation}}.
 
 ## Traffic Key Calculation
 
 [[OPEN ISSUE: This needs to be revised. See https://github.com/tlswg/tls13-spec/issues/5]]
+
 The Record Protocol requires an algorithm to generate keys required by the
 current connection state (see {{the-security-parameters}}) from the security
 parameters provided by the handshake protocol.
 
-The relevant secret is expanded into a sequence of secure bytes, which
-is then split to a client write encryption key and a server write
-encryption key. Each of these is generated from the byte sequence in
-that order. Unused values are empty.
+The traffic key computation takes four input values and returns a key block
+of sufficient size to produce the needed traffic keys:
 
-When keys are generated, the current secret is used as an entropy source.
+* A seed value
+* An input keying material (IKM) value
+* A string label that indicates the keys being generated.
+* The current handshake hash.
 
-* For handshake records, this means the ephemeral secret (ES)
-* For early handshake and application data records, this means the
-  static secret (SS).
-* For ordinary application data records, this means the master secret.
+The keying material is computed using:
 
-To generate the key material, compute
-
-       key_block = HKDF(0, Secret, "key expansion" + handshake_hash,
+       key_block = HKDF(Seed, IKM, "key expansion" + handshake_hash,
                         total_length)
 
-Note: Throughout this specification, the labels that are used with
-HKDF are NUL-terminated, so there is a NUL-byte in between the
-string "key expansion" and the handshake hash.
-
-where Secret is the relevant secret and handshake_hash is the value
-defined in {{the-handshake-hash}}. The key_block is partitioned
-as follows:
+The key_block is partitioned as follows:
 
        client_write_key[SecurityParameters.enc_key_length]
        server_write_key[SecurityParameters.enc_key_length]
        client_write_IV[SecurityParameters.iv_length]
        server_write_IV[SecurityParameters.iv_length]
+
+The following table describes the inputs to the key calculation for
+each class of traffic keys:
+
+~~~
+    Record Type   Seed     IKM       Label
+    -----------   ----     ---       -----
+    Handshake        0      ES       "handshake key expansion"
+    Early data       0      SS       "early data key expansion"
+    Application     SS      ES       "appplication data key expansion"
+~~~
+
+Where 0 indicates a string of 0s of the length of the underlying hash
+for HKDF.
+
 
 ###  The Handshake Hash
 
