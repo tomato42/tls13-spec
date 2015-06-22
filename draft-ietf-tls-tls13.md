@@ -398,7 +398,7 @@ care has been taken to reduce network activity.
 
 #  Goals of This Document
 
-This document and the TLS protocol itself are based on the SSL 3.0 Protocol
+This document and the TLS protocol itself have evolved from the SSL 3.0 Protocol
 Specification as published by Netscape. The differences between this protocol
 and SSL 3.0 are not dramatic, but they are significant enough that the various
 versions of TLS and SSL 3.0 do not interoperate (although each protocol
@@ -629,6 +629,31 @@ For example:
        } VariantRecord;
 
 
+##  Constants
+
+Typed constants can be defined for purposes of specification by declaring a
+symbol of the desired type and assigning values to it.
+
+Under-specified types (opaque, variable-length vectors, and structures that
+contain opaque) cannot be assigned values. No fields of a multi-element
+structure or vector may be elided.
+
+For example:
+
+       struct {
+           uint8 f1;
+           uint8 f2;
+       } Example1;
+
+       Example1 ex1 = {1, 4};  /* assigns f1 = 1, f2 = 4 */
+
+## Primitive Types
+
+The following common primitive types are defined and used subsequently:
+
+          enum { false(0), true(1) } Boolean;
+
+
 ##  Cryptographic Attributes
 
 The two cryptographic operations --- digital signing, and authenticated
@@ -637,6 +662,8 @@ and aead-ciphered, respectively. A field's cryptographic processing
 is specified by prepending an appropriate key word designation before
 the field's type specification.  Cryptographic keys are implied by the
 current session state (see {{connection-states}}).
+
+### Digital Signing
 
 A digitally-signed element is encoded as a struct DigitallySigned:
 
@@ -706,6 +733,8 @@ hash function to be used with a public key in the parameters field of
 subjectPublicKeyInfo.) [[OPEN ISSUE: This needs updating per 4492-bis
 https://github.com/tlswg/tls13-spec/issues/59]]
 
+### Authenticated Encryption with Additional Data (AEAD)
+
 In AEAD encryption, the plaintext is simultaneously encrypted and integrity
 protected. The input may be of any length, and aead-ciphered output is
 generally larger than the input in order to accommodate the integrity check
@@ -737,25 +766,6 @@ algorithm, plus two bytes for the length of the signature, plus the length of
 the output of the signing algorithm. The length of the signature is known
 because the algorithm and key used for the signing are known prior to encoding
 or decoding this structure.
-
-
-##  Constants
-
-Typed constants can be defined for purposes of specification by declaring a
-symbol of the desired type and assigning values to it.
-
-Under-specified types (opaque, variable-length vectors, and structures that
-contain opaque) cannot be assigned values. No fields of a multi-element
-structure or vector may be elided.
-
-For example:
-
-       struct {
-           uint8 f1;
-           uint8 f2;
-       } Example1;
-
-       Example1 ex1 = {1, 4};  /* assigns f1 = 1, f2 = 4 */
 
 
 #  The TLS Record Protocol
@@ -870,7 +880,7 @@ These parameters are defined in the presentation language as:
 
 [TODO: update this to handle new key hierarchy.]
 
-The record layer will use the security parameters to generate the following four
+The connection state will use the security parameters to generate the following four
 items:
 
        client write key
@@ -1421,7 +1431,8 @@ requirements are and never transmit information over a channel less secure than
 what they require. The TLS protocol is secure in that any cipher suite offers
 its promised level of security: if you negotiate AES-GCM {{GCM}} with
 a 255-bit ECDHE key exchange with a host whose certificate
-chain you have verified, you can expect that to be reasonably secure.
+chain you have verified, you can expect that to be reasonably "secure" 
+against algorithmic attacks, at least in the year 2015.
 
 The basic TLS Handshake is shown in Figure 1, shown below:
 
@@ -2750,7 +2761,6 @@ message is sent as the last message before the CertificateVerify.
 Structure of this Message:
 
 %%% Hello Messages
-          enum { false(0), true(1) } Boolean;
 
           struct {
               opaque configuration_id<0..2^16-1>;
