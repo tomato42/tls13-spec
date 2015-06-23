@@ -3057,12 +3057,8 @@ HKDF are NUL-terminated, so there is a NUL-byte in between the
 string "key expansion" and the handshake hash.
    
 1. xSS = HKDF(0, SS, "extractedSS", L)
-   where handshake_hash includes solely the ClientHello (this is
-   necessary to allow for 0-RTT handshakes).
 
 2. xES = HKDF(0, ES, "extractedES", L) where
-   handshake_hash includes all messages up to and including the
-   ServerKeyShare.
 
 3. master_secret= HKDF(xSS, xES, "master secret")
 
@@ -3122,16 +3118,17 @@ The following table describes the inputs to the key calculation for
 each class of traffic keys:
 
 ~~~
-    Record Type   Seed     IKM       Label
-    -----------   ----     ---       -----
-    Handshake        0      ES       "handshake key expansion"
-    Early data       0      SS       "early data key expansion"
-    Application     SS      ES       "appplication data key expansion"
+  Record Type  IKM  Label                               Handshake Hash
+  -----------  ---  -----                               --------------
+  Early data    SS  "early data key expansion"          ClientHello
+
+  Handshake     ES  "handshake key expansion"           ClientHello...
+                                                        ServerKeyShare
+
+  Application   ES  "appplication data key expansion"   All handshake
+                                                        messages but
+                                                        Finished
 ~~~
-
-Where 0 indicates a string of 0s of the length of the underlying hash
-for HKDF.
-
 
 ###  The Handshake Hash
 
