@@ -3056,36 +3056,44 @@ Note: Throughout this specification, the labels that are used with
 HKDF are NUL-terminated, so there is a NUL-byte in between the
 string "key expansion" and the handshake hash.
    
-1. xSS = HKDF(0, SS, "intermediate1" + handshake_hash, L)
+1. xSS = HKDF(0, SS, "extractedSS", L)
    where handshake_hash includes solely the ClientHello (this is
    necessary to allow for 0-RTT handshakes).
 
-2. finished_secret = HKDF(0, SS, "finished_secret" + handshake_hash, L)
-   where handshake_hash includes solely the ClientHello.
-
-3. xES = HKDF(0, ES, "intermediate2" + handshake_hash, L) where
+2. xES = HKDF(0, ES, "extractedES", L) where
    handshake_hash includes all messages up to and including the
    ServerKeyShare.
 
-4. resumption_master_secret = HKDF(xSS, xES,
-                                   "resumption_master_secret" + handshake_hash,
-                                   L)
-   Where handshake_hash includes of all the handshake messages
-   except the Finished messages.
+3. master_secret= HKDF(xSS, xES, "master secret")
 
-5. exporter_master_secret = HKDF(xSS, xES, "exporter master secret" +
-                                 handshake_hash, L)
+3. finished_secret = HKDF-Extract(master_secret,
+                                  "finished_secret" +
+                                  handshake_hash, L)
 
-   Where handshake_hash includes of all the handshake messages
-   except the Finished messages.
-  
-The traffic keys are computed from SS, ES, xSS, and xES, as described 
-in {{traffic-key-calculation}} below.
+   Where handshake_hash includes all the messages in the
+   client's first flight and the server's flight.
+
+4. resumption_secret = HKDF-Extract(master_secret,
+                                    "resumption_master_secret" +
+                                    session_hash, L)
+
+   Where session_hash is as defined in {{the-handshake-hash}}.
+
+5. exporter_secret = HKDF-Extract(master_secret,
+                                  "exporter master secret" +
+                                  session_hash, L)
+
+   Where session_hash is as defined in {{the-handshake-hash}}.
+
+
+The traffic keys are computed from xSS, xES, and the master_secret
+as described in {{traffic-key-calculation}} below.
 
 
 ## Traffic Key Calculation
 
-[[OPEN ISSUE: This needs to be revised. See https://github.com/tlswg/tls13-spec/issues/5]]
+[[OPEN ISSUE: This needs to be revised. Most likely we'll extract each
+  key component separately. See https://github.com/tlswg/tls13-spec/issues/5]]
 
 The Record Protocol requires an algorithm to generate keys required by the
 current connection state (see {{the-security-parameters}}) from the security
@@ -3094,15 +3102,14 @@ parameters provided by the handshake protocol.
 The traffic key computation takes four input values and returns a key block
 of sufficient size to produce the needed traffic keys:
 
-* A seed value
-* An input keying material (IKM) value
+* A secret value
 * A string label that indicates the keys being generated.
 * The current handshake hash.
 
 The keying material is computed using:
 
-       key_block = HKDF(Seed, IKM, "key expansion" + handshake_hash,
-                        total_length)
+       key_block = HKDF-Extract(Secret, "key expansion" + handshake_hash,
+                                total_length)
 
 The key_block is partitioned as follows:
 
