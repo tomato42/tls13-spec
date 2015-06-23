@@ -3019,7 +3019,7 @@ After the server has received the client Finished message, it MAY send
 a NewSessionTicket message. This message creates a pre-shared key
 (PSK) binding between the resumption master secret and the ticket
 label. The client MAY use this PSK for future handshakes by including
-it in the Pre-Shared Key Extension in its ClientHello
+it in the pre_shared_key extension in its ClientHello
 ({{pre-shared-key-extension}}) and supplying a suitable PSK cipher
 suite.
 
