@@ -3055,32 +3055,37 @@ the underlying hash function for HKDF.
 Note: Throughout this specification, the labels that are used with
 HKDF are NUL-terminated, so there is a NUL-byte in between the
 string "key expansion" and the handshake hash.
-   
-1. xSS = HKDF(0, SS, "extractedSS", L)
 
-2. xES = HKDF(0, ES, "extractedES", L) where
-
-3. master_secret= HKDF(xSS, xES, "master secret")
-
-3. finished_secret = HKDF-Extract(master_secret,
-                                  "finished_secret" +
-                                  handshake_hash, L)
-
-   Where handshake_hash includes all the messages in the
-   client's first flight and the server's flight.
-
-4. resumption_secret = HKDF-Extract(master_secret,
-                                    "resumption_master_secret" +
-                                    session_hash, L)
-
-   Where session_hash is as defined in {{the-handshake-hash}}.
-
-5. exporter_secret = HKDF-Extract(master_secret,
-                                  "exporter master secret" +
-                                  session_hash, L)
-
-   Where session_hash is as defined in {{the-handshake-hash}}.
-
+~~~   
+  1. xSS = HKDF(0, SS, "extractedSS", L)
+  
+  2. xES = HKDF(0, ES, "extractedES", L)
+  
+  3. master_secret= HKDF(xSS, xES, "master secret")
+  
+  4. finished_secret = HKDF-Expand(xSS,
+                                   "finished_secret" +
+                                   handshake_hash, L)
+  
+  Where handshake_hash includes all the messages in the
+  client's first flight and the server's flight, excluding
+  the Finished messages (which are never included in the
+  hashes).
+  
+  5. resumption_secret = HKDF-Expand(master_secret,
+                                     "resumption master secret" +
+                                     session_hash, L)
+  
+  Where session_hash is as defined in {{the-handshake-hash}}.
+  
+  6. exporter_secret = HKDF-Expand(master_secret,
+                                   "exporter master secret" +
+                                   session_hash, L)
+  
+  Where session_hash is the session hash as defined in
+  {{the-handshake-hash}} (i.e., the entire handshake except
+  for Finished).
+~~~
 
 The traffic keys are computed from xSS, xES, and the master_secret
 as described in {{traffic-key-calculation}} below.
@@ -3099,13 +3104,14 @@ The traffic key computation takes four input values and returns a key block
 of sufficient size to produce the needed traffic keys:
 
 * A secret value
-* A string label that indicates the keys being generated.
+* A string label that indicates the purpose of keys being generated.
 * The current handshake hash.
+* The total length in octets of the key block.
 
 The keying material is computed using:
 
-       key_block = HKDF-Extract(Secret, "key expansion" + handshake_hash,
-                                total_length)
+       key_block = HKDF-Expand(Secret, Label + handshake_hash,
+                               total_length)
 
 The key_block is partitioned as follows:
 
@@ -3118,16 +3124,16 @@ The following table describes the inputs to the key calculation for
 each class of traffic keys:
 
 ~~~
-  Record Type  IKM  Label                               Handshake Hash
-  -----------  ---  -----                               --------------
-  Early data    SS  "early data key expansion"          ClientHello
+  Record Type Secret  Label                              Handshake Hash
+  ----------- ------  -----                             ---------------
+  Early data      SS  "early data key expansion"            ClientHello
 
-  Handshake     ES  "handshake key expansion"           ClientHello...
-                                                        ServerKeyShare
+  Handshake       ES  "handshake key expansion"          ClientHello...
+                                                         ServerKeyShare
 
-  Application   ES  "appplication data key expansion"   All handshake
-                                                        messages but
-                                                        Finished
+  Application     ES  "appplication data key expansion"   All handshake
+                                                           messages but
+                                                               Finished
 ~~~
 
 ###  The Handshake Hash
