@@ -3883,6 +3883,10 @@ Archives of the list can be found at:
     Google
     bodo@openssl.org
 
+    Erik Nygren
+    Akamai Technologies
+    erik+ietf@nygren.org
+
     Magnus Nystrom
     RSA Security
     magnus@rsasecurity.com
