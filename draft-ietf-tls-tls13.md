@@ -895,13 +895,14 @@ sequence number
 : Each connection state contains a sequence number, which is
   maintained separately for read and write states.  The sequence
   number is set to zero at the beginning of a connection and
-  incremented by one thereafter. Note that this is a change from
-  previous versions of TLS.  Sequence numbers are of type uint64 and
+  incremented by one thereafter.  Sequence numbers are of type uint64 and
   MUST NOT exceed 2^64-1.  Sequence numbers do not wrap.  If a TLS
   implementation would need to wrap a sequence number, it MUST
   terminate the connection.  A sequence number is incremented after
   each record: specifically, the first record transmitted under a
   particular connection state MUST use sequence number 0.
+  NOTE: This is a change from previous versions of TLS, where
+  sequence numbers were reset whenever keys were changed.
 {:br }
 
 
@@ -2385,7 +2386,10 @@ In order to allow servers to readily distinguish between messages sent
 in the first flight and in the second flight (in cases where the
 server rejects the EarlyDataIndication extension), the client MUST
 send the handshake messages as content type
-"early_handshake".
+"early_handshake". [[OPEN ISSUE: This relies on content types
+not being encrypted. If we had content types that were
+encrypted, this would basically require trial decryption,
+which is odd.]]
  
 A server which receives an EarlyDataIndication extension
 can behave in one of three ways:
@@ -2734,7 +2738,12 @@ for this configuration.
 
 expiration_date
 : The last time when this configuration is expected to be valid
-(in seconds since the Unix epoch).
+(in seconds since the Unix epoch). Servers MUST NOT use any value
+more than 604800 seconds (7 days) in the future. Clients MUST
+not cache configurations for longer than 7 days, regardless of
+the expiration_date. [[OPEN ISSUE: Is this the right value?
+The idea is just to minimize exposure.]]
+
 
 server_key
 : The long-term DH key that is being established for this configuration.
@@ -3131,14 +3140,13 @@ each class of traffic keys:
   Handshake      xES  "handshake key expansion"          ClientHello...
                                                          ServerKeyShare
 
-  Application     MS  "appplication data key expansion"   All handshake
-                                                           messages but
+  Application  master  "application data key expansion"   All handshake
+               secret                                      messages but
                                                                Finished
 ~~~
 
 ###  The Handshake Hash
 
-When a handshake takes place, we define
 
        handshake_hash = Hash(
                              Hash(handshake_messages) ||
