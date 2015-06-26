@@ -1551,7 +1551,7 @@ reducing handshake latency, as shown below.
          + ClientKeyShare
        (Certificate*)
        (CertificateVerify*)
-       ([Application Data])        -------->
+       (Application Data)        -------->
                                                        ServerHello
                                                     ServerKeyShare
                                  <--------              {Finished}
@@ -3126,12 +3126,12 @@ each class of traffic keys:
 ~~~
   Record Type Secret  Label                              Handshake Hash
   ----------- ------  -----                             ---------------
-  Early data      SS  "early data key expansion"            ClientHello
+  Early data     xSS  "early data key expansion"            ClientHello
 
-  Handshake       ES  "handshake key expansion"          ClientHello...
+  Handshake      xES  "handshake key expansion"          ClientHello...
                                                          ServerKeyShare
 
-  Application     ES  "appplication data key expansion"   All handshake
+  Application     MS  "appplication data key expansion"   All handshake
                                                            messages but
                                                                Finished
 ~~~
