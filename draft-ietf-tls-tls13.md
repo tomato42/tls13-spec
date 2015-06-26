@@ -398,7 +398,7 @@ care has been taken to reduce network activity.
 
 #  Goals of This Document
 
-This document and the TLS protocol itself are based on the SSL 3.0 Protocol
+This document and the TLS protocol itself have evolved from the SSL 3.0 Protocol
 Specification as published by Netscape. The differences between this protocol
 and SSL 3.0 are not dramatic, but they are significant enough that the various
 versions of TLS and SSL 3.0 do not interoperate (although each protocol
@@ -629,6 +629,31 @@ For example:
        } VariantRecord;
 
 
+##  Constants
+
+Typed constants can be defined for purposes of specification by declaring a
+symbol of the desired type and assigning values to it.
+
+Under-specified types (opaque, variable-length vectors, and structures that
+contain opaque) cannot be assigned values. No fields of a multi-element
+structure or vector may be elided.
+
+For example:
+
+       struct {
+           uint8 f1;
+           uint8 f2;
+       } Example1;
+
+       Example1 ex1 = {1, 4};  /* assigns f1 = 1, f2 = 4 */
+
+## Primitive Types
+
+The following common primitive types are defined and used subsequently:
+
+          enum { false(0), true(1) } Boolean;
+
+
 ##  Cryptographic Attributes
 
 The two cryptographic operations --- digital signing, and authenticated
@@ -637,6 +662,8 @@ and aead-ciphered, respectively. A field's cryptographic processing
 is specified by prepending an appropriate key word designation before
 the field's type specification.  Cryptographic keys are implied by the
 current session state (see {{connection-states}}).
+
+### Digital Signing
 
 A digitally-signed element is encoded as a struct DigitallySigned:
 
@@ -706,6 +733,8 @@ hash function to be used with a public key in the parameters field of
 subjectPublicKeyInfo.) [[OPEN ISSUE: This needs updating per 4492-bis
 https://github.com/tlswg/tls13-spec/issues/59]]
 
+### Authenticated Encryption with Additional Data (AEAD)
+
 In AEAD encryption, the plaintext is simultaneously encrypted and integrity
 protected. The input may be of any length, and aead-ciphered output is
 generally larger than the input in order to accommodate the integrity check
@@ -737,25 +766,6 @@ algorithm, plus two bytes for the length of the signature, plus the length of
 the output of the signing algorithm. The length of the signature is known
 because the algorithm and key used for the signing are known prior to encoding
 or decoding this structure.
-
-
-##  Constants
-
-Typed constants can be defined for purposes of specification by declaring a
-symbol of the desired type and assigning values to it.
-
-Under-specified types (opaque, variable-length vectors, and structures that
-contain opaque) cannot be assigned values. No fields of a multi-element
-structure or vector may be elided.
-
-For example:
-
-       struct {
-           uint8 f1;
-           uint8 f2;
-       } Example1;
-
-       Example1 ex1 = {1, 4};  /* assigns f1 = 1, f2 = 4 */
 
 
 #  The TLS Record Protocol
@@ -870,7 +880,7 @@ These parameters are defined in the presentation language as:
 
 [TODO: update this to handle new key hierarchy.]
 
-The record layer will use the security parameters to generate the following four
+The connection state will use the security parameters to generate the following four
 items:
 
        client write key
@@ -1385,7 +1395,8 @@ requirements are and never transmit information over a channel less secure than
 what they require. The TLS protocol is secure in that any cipher suite offers
 its promised level of security: if you negotiate AES-GCM {{GCM}} with
 a 255-bit ECDHE key exchange with a host whose certificate
-chain you have verified, you can expect that to be reasonably secure.
+chain you have verified, you can expect that to be reasonably "secure" 
+against algorithmic attacks, at least in the year 2015.
 
 The basic TLS Handshake is shown in Figure 1, shown below:
 
@@ -1526,8 +1537,8 @@ described below.
 
 ### Cached Server Configuration
 
-During an initial handshake, the client can provide a server
-configuration containing a long-term (EC)DH share. On future
+During an initial handshake, the server can provide a ServerConfiguration 
+containing a long-term (EC)DH share. On future
 connections, the client can indicate to the server that it knows the
 server's configuration and if that configuration is valid the server
 need not send either a Certificate or CertificateVerify message (provided
@@ -1541,7 +1552,7 @@ paired with ECDHE.
 
 ### 0-RTT Exchange
 
-When a cached server configuration is used, the client can also send
+When a cached ServerConfiguration is used, the client can also send
 application data as well as its Certificate and CertificateVerify
 (if client authentication is requested) on its first flight, thus
 reducing handshake latency, as shown below.
@@ -1592,9 +1603,9 @@ secrecy.
 
 TLS's PSK mode can also be used to eliminate the cost of public key operations
 for repeated interactions between the same client/server pair: once
-a handshake has completed, the server can send the client a PSK identifier
+a handshake has completed, the server can send the client a PSK identity
 which corresponds to a key derived from the initial handshake. The
-client can then use that PSK in future handshakes; if the server accepts
+client can then use that PSK identity in future handshakes to negotiate use of the PSK; if the server accepts
 it, then the security context of the original connection is tied to the
 new connection. In TLS 1.2 and below, this functionality was provided
 by "session resumption" and "session tickets" {{RFC4507}}. Both mechanisms
@@ -1625,9 +1636,9 @@ a PSK and the second uses it:
 
        ClientHello
          + ClientKeyShare,
-           PreSharedKey          -------->
+           PreSharedKeyExtension -------->
                                                        ServerHello
-                                                     +PreSharedKey
+                                            +PreSharedKeyExtension
                                  <--------              {Finished}
        {Certificate*}
        {Finished}                -------->
@@ -1635,7 +1646,7 @@ a PSK and the second uses it:
        [Application Data]        <------->      [Application Data]
 
 
-                Figure 3.  Message flow for PSK-based resumption
+                Figure 4.  Message flow for PSK-based resumption
 
 Note that the client supplies a ClientKeyShare to the server as well, which
 allows the server to reject resumption and fall back to a full handshake.
@@ -1649,7 +1660,7 @@ the following sections.
 The TLS Handshake Protocol is one of the defined higher-level clients of the
 TLS Record Protocol. This protocol is used to negotiate the secure attributes
 of a session. Handshake messages are supplied to the TLS record layer, where
-they are encapsulated within one or more TLSPlaintext structures, which are
+they are encapsulated within one or more TLSPlaintext or TLSCiphertext structures, which are
 processed and transmitted as specified by the current active session state.
 
 %%% Handshake Protocol
@@ -1774,8 +1785,10 @@ session_id
 : Versions of TLS prior to TLS 1.3 supported a session resumption
   feature which has been merged with Pre-Shared Keys in this version
   (see {{resumption-and-psk}}).
-  This field MUST be a zero length vector (i.e., a single zero byte
-  length field).
+  This field MUST be ignored by a server negotiating TLS 1.3 and 
+  should be set as a zero length vector (i.e., a single zero byte
+  length field) by clients which do not have a cached session_id
+  set by a pre-TLS 1.3 server.
 
 cipher_suites
 : This is a list of the cryptographic options supported by the
@@ -1946,9 +1959,9 @@ The initial set of extensions is defined in {{RFC6066}}.
 The list of extension types is maintained by IANA as described in
 {{iana-considerations}}.
 
-An extension type MUST NOT appear in the ServerHello unless the same extension
+An extension type MUST NOT appear in the ServerHello or HelloRetryRequest unless the same extension
 type appeared in the corresponding ClientHello. If a client receives an
-extension type in ServerHello that it did not request in the associated
+extension type in ServerHello or HelloRetryRequest that it did not request in the associated
 ClientHello, it MUST abort the handshake with an "unsupported_extension" fatal
 alert.
 
@@ -1964,7 +1977,7 @@ ServerHello messages, the extensions MAY appear in any order. There MUST NOT be
 more than one extension of the same type.
 
 Finally, note that extensions can be sent both when starting a new session and
-when requesting session resumption. Indeed, a client that requests session
+when requesting session resumption or 0-RTT mode. Indeed, a client that requests session
 resumption does not in general know whether the server will accept this
 request, and therefore it SHOULD send the same extensions as it would send if
 it were not attempting resumption.
@@ -1975,6 +1988,7 @@ current TLS extensions are relevant only when a session is initiated: when an
 older session is resumed, the server does not process these extensions in
 ClientHello, and does not include them in ServerHello. However, some
 extensions may specify different behavior during session resumption.
+[[TODO: update this and the previous paragraph to cover PSK-based resumption.]] 
 
 There are subtle (and not so subtle) interactions that may occur in this
 protocol between new features and existing features which may result in a
@@ -2175,7 +2189,7 @@ must consider the supported groups in both cases.
 
 ####  Client Key Share
 
-The ClientKeyShare extension MUST be provided by the client if it
+The client_key_share extension MUST be provided by the client if it
 offers any cipher suites that involve non-PSK (currently DHE or
 ECDHE) key exchange.  It contains the client's cryptographic parameters
 for zero or more key establishment methods.
@@ -2217,7 +2231,7 @@ for instance a client might offer shares for several elliptic curves
 or multiple integer DH groups. The shares for each ClientKeyShareOffer
 MUST by generated independently. Clients MUST NOT offer multiple
 ClientKeyShareOffers for the same parameters. It is explicitly
-permitted to send an empty ClientKeyShare extension as this is used
+permitted to send an empty client_key_share extension as this is used
 to elicit the server's parameters if the client has no useful
 information.
 [TODO: Recommendation about what the client offers. Presumably which integer
@@ -2270,7 +2284,7 @@ X9.62.]]
 
 ##### Known Configuration Extension
 
-The known configuration extension allows the client to indicate that
+The known_configuration extension allows the client to indicate that
 it wishes to reuse the server's known configuration and semi-static
 (EC)DHE key (see {{server-configuration}} for how to establish these
 configurations. This extension allows the omission of the server
@@ -2279,7 +2293,7 @@ certificate and signature, with three potential benefits:
 - Shortening the handshake because the certificate may be large.
 
 - Reducing cryptographic burden on the server if the server has
-  an RSA certificate.
+  an RSA certificate, as well as on the client if the server has an ECDSA certificate.
 
 - Allowing the client and server to do a 0-RTT exchange.
 
@@ -2303,18 +2317,18 @@ When the client and server mutually agree upon a known configuration via this
 mechanism, then the Static Secret (SS) is computed based on the server's (EC)DHE
 key from the identified configuration and the client's key found in the
 ClientKeyShare. If no key from an acceptable group is in the ClientKeyShare,
-the server MUST reject the known_configuration extension. When this
+the server MUST ignore the known_configuration extension. When this
 mechanism is used, the server MUST NOT send a Certificate/CertificateVerify
 message unless the ServerConfiguration message is also sent.
 
 When the known_configuration data extension is in use, the handshake hash
 is extended to include the server's configuration data and certificate
-(see {{the-handshake-hash}}).
+(see {{the-handshake-hash}}) so as to tightly bind them together.
 
 
 ##### Pre-Shared Key Extension
 
-The pre-shared key extension is used to indicate the identity of the
+The pre_shared_key extension is used to indicate the identity of the
 pre-shared key to be used with a given handshake in association
 with a PSK or (EC)DHE-PSK cipher suite (see {{RFC4279}} for background).
 
@@ -2442,6 +2456,7 @@ handshake. Implementations are responsible for ensuring uniqueness of
 the context string between connections, which is only practical when
 they have globally unique state (this is easiest with a
 non-distributed server endpoint).
+[[TODO: Add examples...]]
 
 ###  Server Key Share
 
@@ -2486,7 +2501,7 @@ definition.
 When this message will be sent:
 
 > If this message is sent, it MUST be sent immediately after the server's
-ServerKeyShare.
+ServerKeyShare.  [[TODO: talk about how this is in the first message in the ES connection state.]]
 
 Meaning of this message:
 
@@ -2597,7 +2612,8 @@ The following rules apply to the certificates sent by the server:
 ~~~~
 
 - The "server_name" and "trusted_ca_keys" extensions {{RFC6066}} are used to
-  guide certificate selection.
+  guide certificate selection. As servers MAY require the presence of the server_name
+  extension, clients SHOULD send this extension.
 
 If the client provided a "signature_algorithms" extension, then all
 certificates provided by the server MUST be signed by a hash/signature
@@ -2717,7 +2733,6 @@ message is sent as the last message before the CertificateVerify.
 Structure of this Message:
 
 %%% Hello Messages
-          enum { false(0), true(1) } Boolean;
 
           struct {
               opaque configuration_id<0..2^16-1>;
@@ -2743,7 +2758,6 @@ more than 604800 seconds (7 days) in the future. Clients MUST
 not cache configurations for longer than 7 days, regardless of
 the expiration_date. [[OPEN ISSUE: Is this the right value?
 The idea is just to minimize exposure.]]
-
 
 server_key
 : The long-term DH key that is being established for this configuration.
@@ -2859,7 +2873,7 @@ verify_data
 finished_label
 : For Finished messages sent by the client, the string
   "client finished".  For Finished messages sent by the server,
-  the string "server finished".
+  the string "server finished".  Both are NUL-terminated.
 {:br }
 
 > In previous versions of TLS, the verify_data was always 12 octets long. In
@@ -2976,7 +2990,7 @@ After the server has received the client Finished message, it MAY send
 a NewSessionTicket message. This message creates a pre-shared key
 (PSK) binding between the resumption master secret and the ticket
 label. The client MAY use this PSK for future handshakes by including
-it in the Pre-Shared Key Extension in its ClientHello
+it in the pre_shared_key extension in its ClientHello
 ({{pre-shared-key-extension}}) and supplying a suitable PSK cipher
 suite.
 
@@ -3003,8 +3017,8 @@ on local policy.  A server MAY treat a ticket as valid for a shorter
 or longer period of time than what is stated in the
 ticket_lifetime_hint.
 
-The ticket itself is an opaque label and MAY either be a database
-lookup key or a self-encrypted value. Section 4 of {{RFC4507}}
+The ticket itself is an opaque label. It MAY either be a database
+lookup key or a self-encrypted and self-authenticated value. Section 4 of {{RFC4507}}
 describes a recommended ticket construction mechanism.
 
 [[TODO: Should we require that tickets be bound to the existing
@@ -3890,6 +3904,10 @@ Archives of the list can be found at:
     Bodo Moeller (co-author of RFC4492)
     Google
     bodo@openssl.org
+
+    Erik Nygren
+    Akamai Technologies
+    erik+ietf@nygren.org
 
     Magnus Nystrom
     RSA Security
