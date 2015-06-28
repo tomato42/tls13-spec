@@ -1650,6 +1650,9 @@ a PSK and the second uses it:
 
 Note that the client supplies a ClientKeyShare to the server as well, which
 allows the server to reject resumption and fall back to a full handshake.
+However, because the server is authenticating via a PSK, it does not
+send a Certificate or a CertificateVerify. PSK-based resumption cannot
+be used to provide a new ServerConfiguration.
                 
 The contents and significance of each message will be presented in detail in
 the following sections.
@@ -2867,8 +2870,10 @@ Structure of this message:
 The verify_data value is computed as follows:
 
 verify_data
-:      HMAC(finished_secret, finished_label + session_hash)
+:      HMAC(finished_secret, finished_label + handshake_hash)
        where HMAC uses the Hash algorithm for the handshake.
+       See {{the-handshake-hash}} for the definition of
+       handshake_hash.
 
 finished_label
 : For Finished messages sent by the client, the string
@@ -2882,7 +2887,9 @@ Hash used for the handshake.
 
 Note: Alerts and any other record types are not handshake messages
 and are not included in the hash computations. Also, HelloRequest
-messages are omitted from handshake hashes.
+messages and the Finished message are omitted from handshake hashes.
+Because the server's Finished does not include the client's
+Certificate and CertificateVerify message.
 
 ###  Client Certificate
 
@@ -3075,6 +3082,7 @@ shown below.
 The derivation process is as follows, where L denotes the length of
 the underlying hash function for HKDF.
 
+
 Note: Throughout this specification, the labels that are used with
 HKDF are NUL-terminated, so there is a NUL-byte in between the
 string "key expansion" and the handshake hash.
@@ -3084,7 +3092,7 @@ string "key expansion" and the handshake hash.
   
   2. xES = HKDF(0, ES, "extractedES", L)
   
-  3. master_secret= HKDF(xSS, xES, "master secret")
+  3. master_secret= HKDF(xSS, xES, "master secret", L)
   
   4. finished_secret = HKDF-Expand(xSS,
                                    "finished_secret" +
