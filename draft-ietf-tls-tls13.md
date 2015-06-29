@@ -1551,7 +1551,7 @@ signatures are slower than key agreement, principally RSA signatures
 paired with ECDHE.
 
 
-### 0-RTT Exchange
+### Zero-RTT Exchange
 
 When a cached ServerConfiguration is used, the client can also send
 application data as well as its Certificate and CertificateVerify
@@ -2453,7 +2453,7 @@ These two should match.
 
 ###### Replay Properties
 
-As noted in {{0-rtt-exchange}}, TLS does not provide any
+As noted in {{zero-rtt-exchange}}, TLS does not provide any
 inter-connection mechanism for replay protection for data sent by the
 client in the first flight.  As a special case, implementations where
 the server configuration, is delivered out of band (as has been
