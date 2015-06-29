@@ -3083,36 +3083,34 @@ shown below.
 The derivation process is as follows, where L denotes the length of
 the underlying hash function for HKDF.
 
+~~~
+  HKDF-Expand-Label(Secret, Label, HashValue, Length) =
+       HKDF-Expand(Secret, Label + '\0' + HashValue, Length)
 
-Note: Throughout this specification, the labels that are used with
-HKDF are NUL-terminated, so there is a NUL-byte in between the
-string "key expansion" and the handshake hash.
-
-~~~   
   1. xSS = HKDF(0, SS, "extractedSS", L)
   
   2. xES = HKDF(0, ES, "extractedES", L)
   
   3. master_secret= HKDF(xSS, xES, "master secret", L)
   
-  4. finished_secret = HKDF-Expand(xSS,
-                                   "finished_secret" +
-                                   handshake_hash, L)
+  4. finished_secret = HKDF-Expand-Label(xSS,
+                                         "finished_secret",
+                                         handshake_hash, L)
   
   Where handshake_hash includes all the messages in the
   client's first flight and the server's flight, excluding
   the Finished messages (which are never included in the
   hashes).
   
-  5. resumption_secret = HKDF-Expand(master_secret,
-                                     "resumption master secret" +
-                                     session_hash, L)
+  5. resumption_secret = HKDF-Expand-Label(master_secret,
+                                           "resumption master secret"
+                                           session_hash, L)
   
   Where session_hash is as defined in {{the-handshake-hash}}.
   
-  6. exporter_secret = HKDF-Expand(master_secret,
-                                   "exporter master secret" +
-                                   session_hash, L)
+  6. exporter_secret = HKDF-Expand-Label(master_secret,
+                                         "exporter master secret",
+                                         session_hash, L)
   
   Where session_hash is the session hash as defined in
   {{the-handshake-hash}} (i.e., the entire handshake except
@@ -3142,8 +3140,9 @@ of sufficient size to produce the needed traffic keys:
 
 The keying material is computed using:
 
-       key_block = HKDF-Expand(Secret, Label + handshake_hash,
-                               total_length)
+       key_block = HKDF-Expand-Label(Secret, Label,
+                                     handshake_hash,
+                                     total_length)
 
 The key_block is partitioned as follows:
 
