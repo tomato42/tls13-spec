@@ -2798,16 +2798,17 @@ Structure of this message:
 %%% Authentication Messages
        struct {
             digitally-signed struct {
-               opaque session_hash[hash_length];
+               opaque handshake_hash[hash_length];
             }
        } CertificateVerify;
 
-> Where session_hash is as described in {{the-handshake-hash}
-sent or received, starting at ClientHello and up to, but not
-including, this message, including the type and length fields of the
-handshake messages. This is a digest of the concatenation of all the
-Handshake structures (as defined in {{handshake-protocol}}) exchanged
-thus far. The digest MUST be the Hash used as the basis for HKDF.
+> Where session_hash is as described in {{the-handshake-hash} and
+includes the messages sent or received, starting at ClientHello and up
+to, but not including, this message, including the type and length
+fields of the handshake messages. This is a digest of the
+concatenation of all the Handshake structures (as defined in
+{{handshake-protocol}}) exchanged thus far. The digest MUST be the
+Hash used as the basis for HKDF.
 
 > The context string for the signature is "TLS 1.3, server CertificateVerify". A
 hash of the handshake messages is signed rather than the messages themselves
@@ -3165,6 +3166,7 @@ each class of traffic keys:
   Application  master  "application data key expansion"   All handshake
                secret                                      messages but
                                                                Finished
+                                                         (session_hash)
 ~~~
 
 ###  The Handshake Hash
