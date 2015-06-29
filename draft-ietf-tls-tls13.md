@@ -107,6 +107,7 @@ informative:
   RFC5081:
   RFC5116:
   RFC5705:
+  RFC5763:
   RFC6066:
   RFC6176:
   RFC7465:
@@ -1462,7 +1463,7 @@ message which provides a signature over the entire handshake up to
 this point. This serves both to authenticate the server and to establish
 the integrity of the negotiation. Finally, the server sends a Finished
 message which includes an integrity check over the handshake keyed
-by the shared secret and demonstrates that the server and client have
+by the static secret and demonstrates that the server and client have
 agreed upon the same keys.
 [[TODO: If the server is not requesting client authentication,
 it MAY start sending application data following the Finished, though
@@ -1649,7 +1650,7 @@ a PSK and the second uses it:
                 Figure 4.  Message flow for PSK-based resumption
 
 Note that the client supplies a ClientKeyShare to the server as well, which
-allows the server to reject resumption and fall back to a full handshake.
+allows the server to decline resumption and fall back to a full handshake.
 However, because the server is authenticating via a PSK, it does not
 send a Certificate or a CertificateVerify. PSK-based resumption cannot
 be used to provide a new ServerConfiguration.
@@ -2396,12 +2397,12 @@ order to sent the client authentication data on the first flight. In
 either case, the client Certificate and CertificateVerify (assuming
 that the Certificate is non-empty) MUST be sent on the first flight A
 server which receives an initial flight with only "early_data" and
-which expects certificate-based client authentication MUST reject the
-early data.
+which expects certificate-based client authentication MUST not
+accept early data.
 
 In order to allow servers to readily distinguish between messages sent
 in the first flight and in the second flight (in cases where the
-server rejects the EarlyDataIndication extension), the client MUST
+server does not accept the EarlyDataIndication extension), the client MUST
 send the handshake messages as content type
 "early_handshake". [[OPEN ISSUE: This relies on content types
 not being encrypted. If we had content types that were
@@ -2409,7 +2410,7 @@ encrypted, this would basically require trial decryption,
 which is odd.]]
  
 A server which receives an EarlyDataIndication extension
-can behave in one of three ways:
+can behave in one of two ways:
 
 - Ignore the extension and return no response. This indicates
   that the server has ignored any early data and an ordinary
@@ -2421,7 +2422,8 @@ can behave in one of three ways:
 The server MUST first validate that the client's "known_configuration"
 extension is valid and that the client has suppled a valid
 key share in the "client_key_shares" extension. If not, it MUST
-ignore the extension.
+ignore the extension and discard the early handshake data
+and early data. 
 
 [[TODO: How does the client behave if the indication is rejected.]]
 
@@ -2451,15 +2453,14 @@ These two should match.
 
 ###### Replay Properties
 
-TLS does not provide any inter-connection mechanism for replay
-protection for data sent by the client in the first flight.  As a
-special case, implementations MAY provide a context string in an
-out-of-band channel for the client to echo back in its
-handshake. Implementations are responsible for ensuring uniqueness of
-the context string between connections, which is only practical when
-they have globally unique state (this is easiest with a
-non-distributed server endpoint).
-[[TODO: Add examples...]]
+As noted in {{0-rtt-exchange}}, TLS does not provide any
+inter-connection mechanism for replay protection for data sent by the
+client in the first flight.  As a special case, implementations where
+the server configuration, is delivered out of band (as has been
+proposed for DTLS-SRTP {{RFC5763}}), MAY use a unique server
+configuration identifier for each connection, thus preventing
+replay. Implementations are responsible for ensuring uniqueness of the
+identifier in this case.
 
 ###  Server Key Share
 
@@ -3181,7 +3182,8 @@ handshake_messages
   received, starting at ClientHello up to the present time, with the
   exception of the Finished message, including the type and length
   fields of the handshake messages. This is the concatenation of all the
-  exchanged Handshake structures in plaintext form.
+  exchanged Handshake structures in plaintext form (even if they
+  were encrypted on the wire).
 
 configuration
 : When the known_configuration extension is in use ({{known-configuration-extension}},
