@@ -1645,7 +1645,7 @@ Initial Handshake:
        {Certificate*}
        {CertificateVerify*}
        {Finished}                -------->
-                                 <--------      {NewSessionTicket}
+                                 <--------      [NewSessionTicket]
        [Application Data]        <------->      [Application Data]
 
 
@@ -1659,7 +1659,6 @@ Subsequent Handshake:
                                  <--------              {Finished}
        {Certificate*}
        {Finished}                -------->
-                                 <--------      {NewSessionTicket}
        [Application Data]        <------->      [Application Data]
 
 
