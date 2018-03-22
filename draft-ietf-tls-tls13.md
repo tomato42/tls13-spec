@@ -607,7 +607,7 @@ This document defines TLS version 1.3. While TLS 1.3 is not directly
 compatible with previous versions, all versions of TLS incorporate a
 versioning mechanism which allows clients and servers to interoperably
 negotiate a common version if one is supported by both peers
-«[tomato42/tlsfuzzer](https://github.com/tomato42/tlsfuzzer/issues/203)».
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)».
 
 This document supersedes and obsoletes previous versions of TLS
 including version 1.2 {{RFC5246}}.  It also obsoletes the TLS ticket
