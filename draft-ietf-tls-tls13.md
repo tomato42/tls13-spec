@@ -560,7 +560,8 @@ secure channel should provide the following properties:
 - Authentication: The server side of the channel is always
   authenticated; the client side is optionally
   authenticated. Authentication can happen via asymmetric cryptography
-  (e.g., RSA {{RSA}}, ECDSA {{ECDSA}}, EdDSA {{RFC8032}}) or a pre-shared key (PSK).
+  (e.g., RSA {{RSA}}, ECDSA {{ECDSA}} «[tomato42/tlsfuzzer#55](https://github.com/tomato42/tlsfuzzer/issues/55)»,
+  EdDSA {{RFC8032}} «[tomato42/tlsfuzzer#196](https://github.com/tomato42/tlsfuzzer/issues/196)») or a pre-shared key (PSK).
 
 - Confidentiality: Data sent over the channel after establishment
   is only visible to the
