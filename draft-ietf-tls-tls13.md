@@ -1171,10 +1171,12 @@ support TLS 1.3:
 
 * The "supported_versions" ClientHello extension can be used to negotiate
   the version of TLS to use, in preference to the legacy_version field of
-  the ClientHello.
+  the ClientHello
+  «[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)».
 
 * The "signature_algorithms_cert" extension allows a client to indicate
   which signature algorithms it can validate in X.509 certificates
+  «[tomato42/tlsfuzzer#210](https://github.com/tomato42/tlsfuzzer/issues/210)».
 
 Additionally, this document clarifies some compliance requirements for earlier
 versions of TLS; see {{protocol-invariants}}.
