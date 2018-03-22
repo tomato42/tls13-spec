@@ -559,18 +559,21 @@ secure channel should provide the following properties:
 
 - Authentication: The server side of the channel is always
   authenticated; the client side is optionally
-  authenticated. Authentication can happen via asymmetric cryptography
-  (e.g., RSA {{RSA}}, ECDSA {{ECDSA}} «[tomato42/tlsfuzzer#55](https://github.com/tomato42/tlsfuzzer/issues/55)»,
-  EdDSA {{RFC8032}} «[tomato42/tlsfuzzer#196](https://github.com/tomato42/tlsfuzzer/issues/196)») or a pre-shared key (PSK).
+  authenticated «[tomato42/tlsfuzzer#198](https://github.com/tomato42/tlsfuzzer/issues/198)».
+  Authentication can happen via asymmetric cryptography
+  (e.g., RSA {{RSA}}, ECDSA {{ECDSA}} «[tomato42/tlsfuzzer#197](https://github.com/tomato42/tlsfuzzer/issues/197)»,
+  EdDSA {{RFC8032}} «[tomato42/tlsfuzzer#196](https://github.com/tomato42/tlsfuzzer/issues/196)») or a
+  pre-shared key (PSK) «[tomato42/tlsfuzzer#191](https://github.com/tomato42/tlsfuzzer/issues/191)».
 
 - Confidentiality: Data sent over the channel after establishment
   is only visible to the
   endpoints. TLS does not hide the length of the data it transmits,
-  though endpoints are able to pad TLS records in order to obscure lengths
+  though endpoints are able to pad TLS records «[tomato42/tlsfuzzer#199](https://github.com/tomato42/tlsfuzzer/issues/199)»
+  in order to obscure lengths
   and improve protection against traffic analysis techniques.
 
 - Integrity: Data sent over the channel after establishment cannot be
-  modified by attackers.
+  modified by attackers «[tomato42/tlsfuzzer#200](https://github.com/tomato42/tlsfuzzer/issues/200)».
 
 These properties should be true even in the face of an attacker who has complete
 control of the network, as described in {{?RFC3552}}.
@@ -589,8 +592,9 @@ TLS consists of two primary components:
 - A record protocol ({{record-protocol}}) that uses the parameters established by the
   handshake protocol to protect traffic between the communicating
   peers. The record protocol divides traffic up into a series of
-  records, each of which is independently protected using the
-  traffic keys.
+  records «[tomato42/tlsfuzzer#201](https://github.com/tomato42/tlsfuzzer/issues/201)»,
+  each of which is independently protected using the
+  traffic keys «[tomato42/tlsfuzzer#202](https://github.com/tomato42/tlsfuzzer/issues/202)».
 
 TLS is application protocol independent; higher-level protocols can
 layer on top of TLS transparently. The TLS standard, however, does not
@@ -602,11 +606,13 @@ implementors of protocols that run on top of TLS.
 This document defines TLS version 1.3. While TLS 1.3 is not directly
 compatible with previous versions, all versions of TLS incorporate a
 versioning mechanism which allows clients and servers to interoperably
-negotiate a common version if one is supported by both peers.
+negotiate a common version if one is supported by both peers
+«[tomato42/tlsfuzzer](https://github.com/tomato42/tlsfuzzer/issues/203)».
 
 This document supersedes and obsoletes previous versions of TLS
 including version 1.2 {{RFC5246}}.  It also obsoletes the TLS ticket
-mechanism defined in {{RFC5077}} and replaces it with the mechanism
+mechanism defined in {{RFC5077}} «[tomato42/tlsfuzzer#52](https://github.com/tomato42/tlsfuzzer/issues/52)»
+and replaces it with the mechanism
 defined in {{resumption-and-psk}}. {{negotiated-groups}} updates
 {{RFC4492}} by modifying the protocol attributes used to negotiate
 Elliptic Curves.  Because TLS 1.3 changes the way keys are derived, it
