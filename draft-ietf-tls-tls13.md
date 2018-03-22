@@ -1200,10 +1200,13 @@ termination of the connection, optionally preceded by an alert message
 TLS supports three basic key exchange modes:
 
 - (EC)DHE (Diffie-Hellman over either finite fields or elliptic curves)
+  «[tomato42/tlsfuzzer#56](https://github.com/tomato42/tlsfuzzer/issues/56)»
 
 - PSK-only
+  «[tomato42/tlsfuzzer#191](https://github.com/tomato42/tlsfuzzer/issues/191)»
 
 - PSK with (EC)DHE
+  «[tomato42/tlsfuzzer#190](https://github.com/tomato42/tlsfuzzer/issues/190)»
 
 {{tls-full}} below shows the basic full TLS handshake:
 
@@ -1258,7 +1261,8 @@ in the diagram above):
 
 In the Key Exchange phase, the client sends the ClientHello
 ({{client-hello}}) message, which contains a random nonce
-(ClientHello.random); its offered protocol versions; a list of
+(ClientHello.random); its offered protocol versions
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»; a list of
 symmetric cipher/HKDF hash pairs; either a set of Diffie-Hellman key shares (in the
 "key_share" extension {{key-share}}), a set of pre-shared key labels (in the
 "pre_shared_key" extension {{pre-shared-key-extension}}) or both; and
