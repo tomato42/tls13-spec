@@ -1112,7 +1112,8 @@ are many minor differences.
   the record protection algorithm (including secret key length) and a hash
   to be used with the key derivation function and HMAC.
 
-- A 0-RTT mode was added, saving a round-trip at connection setup for
+- A 0-RTT mode was added «[tomato42/tlsfuzzer#205](https://github.com/tomato42/tlsfuzzer/issues/205)»,
+  saving a round-trip at connection setup for
   some application data, at the cost of certain security properties.
 
 - Static RSA and Diffie-Hellman cipher suites have been removed;
@@ -1120,6 +1121,7 @@ are many minor differences.
 
 - All handshake messages after the ServerHello are now encrypted. The
   newly introduced EncryptedExtension message allows various extensions
+  «[tomato42/tlsfuzzer#206](https://github.com/tomato42/tlsfuzzer/issues/206)»
   previously sent in clear in the ServerHello to also enjoy
   confidentiality protection from active attackers.
 
@@ -1130,14 +1132,19 @@ are many minor differences.
 
 - The handshake state machine has been significantly restructured to
   be more consistent and to remove superfluous messages such as
-  ChangeCipherSpec (except when needed for middlebox compatibility).
+  ChangeCipherSpec (except when needed for middlebox compatibility)
+  «[tomato42/tlsfuzzer#207](https://github.com/tomato42/tlsfuzzer/issues/207)».
 
 - Elliptic curve algorithms are now in the base spec and new signature
-  algorithms, such as ed25519 and ed448, are included. TLS 1.3 removed point format
-  negotiation in favor of a single point format for each curve.
+  algorithms, such as ed25519 and ed448, are included
+  «[tomato42/tlsfuzzer#196](https://github.com/tomato42/tlsfuzzer/issues/196)».
+  TLS 1.3 removed point format
+  negotiation in favor of a single point format for each curve
+  «[tomato42/tlsfuzzer#208](https://github.com/tomato42/tlsfuzzer/issues/208)».
 
 - Other cryptographic improvements including the removal of compression and
-  custom DHE groups, changing the RSA padding to use RSASSA-PSS, and the removal of
+  custom DHE groups, changing the RSA padding to use RSASSA-PSS
+  «[tomato42/tlsfuzzer#209](https://github.com/tomato42/tlsfuzzer/issues/209)», and the removal of
   DSA.
 
 - The TLS 1.2 version negotiation mechanism has been deprecated in favor
@@ -1146,7 +1153,7 @@ are many minor differences.
 
 - Session resumption with and without server-side state as well as the
   PSK-based ciphersuites of earlier TLS versions have been replaced by a
-  single new PSK exchange.
+  single new PSK exchange «[tomato42/tlsfuzzer#184](https://github.com/tomato42/tlsfuzzer/issues/184)».
 
 - Updated references to point to the updated versions of RFCs, as
   appropriate (e.g., RFC 5280 rather than RFC 3280).
