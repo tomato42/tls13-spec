@@ -690,6 +690,7 @@ draft-23
 
 - Add a new extension and new code points to allow negotiating PSS
   separately for certificates and CertificateVerify (*)
+  «[tomato42/tlsfuzzer#204](https://github.com/tomato42/tlsfuzzer/issues/204)»
 
 - Slightly restrict when CCS must be accepted to make implementation
   easier.
