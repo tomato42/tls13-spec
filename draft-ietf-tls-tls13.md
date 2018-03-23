@@ -1395,16 +1395,22 @@ described in the following sections.
 Although TLS PSKs can be established out of band,
 PSKs can also be established in a previous connection and
 then used to establish a new connection ("session resumption" or "resuming" with a PSK).
+«[tomato42/tlsfuzzer#190](https://github.com/tomato42/tlsfuzzer/issues/190),
+[tomato42/tlsfuzzer#191](https://github.com/tomato42/tlsfuzzer/issues/191)»
 Once a handshake has completed, the server can
 send to the client a PSK identity that corresponds to a unique key derived from
 the initial handshake (see {{NSTMessage}}). The client
 can then use that PSK identity in future handshakes to negotiate the use
-of the associated PSK. If the server accepts the PSK, then the security context of the
+of the associated PSK
+«[tomato42/tlsfuzzer#184](https://github.com/tomato42/tlsfuzzer/issues/184)»
+. If the server accepts the PSK, then the security context of the
 new connection is cryptographically tied to the original connection and the key derived
 from the initial handshake is used to bootstrap the cryptographic state
 instead of a full handshake.
 In TLS 1.2 and below, this functionality was provided by "session IDs" and
-"session tickets" {{RFC5077}}. Both mechanisms are obsoleted in TLS 1.3.
+"session tickets" {{RFC5077}}
+«[tomato42/tlsfuzzer#52](https://github.com/tomato42/tlsfuzzer/issues/52)»
+. Both mechanisms are obsoleted in TLS 1.3.
 
 PSKs can be used with (EC)DHE key exchange in order to provide forward
 secrecy in combination with shared keys, or can be used alone, at the
@@ -1461,6 +1467,8 @@ providing forward secrecy.
 When PSKs are provisioned out of band, the PSK identity and the KDF hash
 algorithm to
 be used with the PSK MUST also be provisioned.
+«[tomato42/tlsfuzzer#190](https://github.com/tomato42/tlsfuzzer/issues/190),
+[tomato42/tlsfuzzer#192](https://github.com/tomato42/tlsfuzzer/issues/191)»
 
 Note:
 : When using an out-of-band provisioned pre-shared secret, a critical
