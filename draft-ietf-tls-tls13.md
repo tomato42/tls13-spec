@@ -1352,8 +1352,10 @@ includes only DHE or ECDHE groups unacceptable to or unsupported by the
 server), the server corrects the mismatch with a HelloRetryRequest and
 the client needs to restart the handshake with an appropriate
 "key_share" extension, as shown in Figure 2.
+«[tomato42/tlsfuzzer#183](https://github.com/tomato42/tlsfuzzer/issues/183)»
 If no common cryptographic parameters can be negotiated,
 the server MUST abort the handshake with an appropriate alert.
+«[tomato42/tlsfuzzer#213](https://github.com/tomato42/tlsfuzzer/issues/213)»
 
 ~~~
          Client                                               Server
@@ -1382,6 +1384,7 @@ the server MUST abort the handshake with an appropriate alert.
 Note: The handshake transcript incorporates the initial
 ClientHello/HelloRetryRequest exchange; it is not reset with the new
 ClientHello.
+«[tomato42/tlsfuzzer#214](https://github.com/tomato42/tlsfuzzer/issues/214)»
 
 TLS also allows several optimized variants of the basic handshake, as
 described in the following sections.
