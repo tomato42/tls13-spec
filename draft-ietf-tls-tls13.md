@@ -1289,11 +1289,13 @@ EncryptedExtensions:
 : responses to ClientHello extensions that are not required to
   determine the cryptographic parameters, other than those
   that are specific to individual certificates. \[{{encrypted-extensions}}]
+  «[tomato42/tlsfuzzer#206](https://github.com/tomato42/tlsfuzzer/issues/206)»
 
 CertificateRequest:
 : if certificate-based client authentication is desired, the
   desired parameters for that certificate. This message is
   omitted if client authentication is not desired. \[{{certificate-request}}]
+  «[tomato42/tlsfuzzer#198](https://github.com/tomato42/tlsfuzzer/issues/198)»
 
 Finally, the client and server exchange Authentication messages. TLS
 uses the same set of messages every time that certificate-based
@@ -1317,12 +1319,14 @@ CertificateVerify:
   corresponding to the public key in the Certificate message. This
   message is omitted if the endpoint is not authenticating via a
   certificate. \[{{certificate-verify}}]
+  «[tomato42/tlsfuzzer#211](https://github.com/tomato42/tlsfuzzer/issues/211)»
 
 Finished:
 : a MAC (Message Authentication Code) over the entire handshake.
   This message provides key confirmation, binds the endpoint's identity
   to the exchanged keys, and in PSK mode
   also authenticates the handshake. \[{{finished}}]
+  «[tomato42/tlsfuzzer#212](https://github.com/tomato42/tlsfuzzer/issues/212)»
 {:br }
 
 Upon receiving the server's messages, the client responds with its Authentication
@@ -1332,8 +1336,10 @@ At this point, the handshake is complete, and the client and server
 derive the keying material required by the record layer to exchange
 application-layer data protected through authenticated encryption.
 Application data MUST NOT be sent prior to sending the Finished message,
+«[tomato42/tlsfuzzer#195](https://github.com/tomato42/tlsfuzzer/issues/195)»
 except as specified
 in \[{{zero-rtt-data}}].
+«[tomato42/tlsfuzzer#205](https://github.com/tomato42/tlsfuzzer/issues/205)»
 Note that while the server may send application data prior to receiving
 the client's Authentication messages, any data sent at that point is,
 of course, being sent to an unauthenticated peer.
