@@ -2339,6 +2339,7 @@ appear, using the following notation: CH (ClientHello), SH
 (HelloRetryRequest). If an implementation receives an extension which
 it recognizes and which is not specified for the message in which it
 appears it MUST abort the handshake with an "illegal_parameter" alert.
+«[tomato42/tlsfuzzer#206](https://github.com/tomato42/tlsfuzzer/issues/206)»
 
 | Extension                                |   TLS 1.3   |
 |:-----------------------------------------|------------:|
@@ -2369,11 +2370,15 @@ When multiple extensions of different types are present, the
 extensions MAY appear in any order, with the exception of
 "pre_shared_key" {{pre-shared-key-extension}} which MUST be
 the last extension in the ClientHello.
+«[tomato42/tlsfuzzer#247](https://github.com/tomato42/tlsfuzzer/issues/247)»
 There MUST NOT be more than one extension of the same type in a given
 extension block.
+«[tomato42/tlsfuzzer#135](https://github.com/tomato42/tlsfuzzer/issues/135)»
 
 In TLS 1.3, unlike TLS 1.2, extensions are negotiated for each
-handshake even when in resumption-PSK mode. However, 0-RTT parameters are
+handshake even when in resumption-PSK mode.
+«[tomato42/tlsfuzzer#248](https://github.com/tomato42/tlsfuzzer/issues/248)»
+However, 0-RTT parameters are
 those negotiated in the previous handshake; mismatches may require
 rejecting 0-RTT (see {{early-data-indication}}).
 
