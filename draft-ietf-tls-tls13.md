@@ -1486,7 +1486,9 @@ Note:
 
 When clients and servers share a PSK (either obtained externally or
 via a previous handshake), TLS 1.3 allows clients to send data on the
-first flight ("early data"). The client uses the PSK to authenticate
+first flight ("early data").
+«[tomato42/tlsfuzzer#205](https://github.com/tomato42/tlsfuzzer/issues/205)»
+The client uses the PSK to authenticate
 the server and to encrypt the early data.
 
 As shown in {{tls-0-rtt}}, the 0-RTT data is just added to the 1-RTT
