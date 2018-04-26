@@ -1826,6 +1826,7 @@ Protocol messages MUST be sent in the order defined in
 {{the-transcript-hash}} and shown in the diagrams in {{protocol-overview}}.
 A peer which receives a handshake message in an unexpected order
 MUST abort the handshake with an "unexpected_message" alert.
+«[tomato42/tlsfuzzer#228](https://github.com/tomato42/tlsfuzzer/issues/228)»
 
 New handshake message types are assigned by IANA as described in
 {{iana-considerations}}.
