@@ -2209,7 +2209,9 @@ if it is able to find an acceptable set of parameters but the
 ClientHello does not contain sufficient information to proceed with
 the handshake. As discussed in {{server-hello}}, the HelloRetryRequest
 has the same format as a ServerHello message, and the
-legacy_version, legacy_session_id_echo, cipher_suite, and legacy_compression
+legacy_version «[tomato42/tlsfuzzer#246](https://github.com/tomato42/tlsfuzzer/issues/246)»,
+legacy_session_id_echo «[tomato42/tlsfuzzer#240](https://github.com/tomato42/tlsfuzzer/issues/240)»,
+cipher_suite, and legacy_compression «[tomato42/tlsfuzzer#246](https://github.com/tomato42/tlsfuzzer/issues/246)»
 methods fields have the same meaning. However, for convenience we
 discuss HelloRetryRequest throughout this document as if it were
 a distinct message.
@@ -2227,14 +2229,17 @@ and legacy_compression_method as specified in {{server-hello}} and then process 
 extensions, starting with determining the version using
 "supported_versions". Clients MUST abort the handshake with
 an "illegal_parameter" alert if the HelloRetryRequest would not result in
-any change in the ClientHello. If a client receives a second
+any change in the ClientHello «[tomato42/tlsfuzzer#246](https://github.com/tomato42/tlsfuzzer/issues/246)».
+If a client receives a second
 HelloRetryRequest in the same connection (i.e., where
 the ClientHello was itself in response to a HelloRetryRequest), it
 MUST abort the handshake with an "unexpected_message" alert.
 
 Otherwise, the client MUST process all extensions in the
 HelloRetryRequest and send a second updated ClientHello. The
-HelloRetryRequest extensions defined in this specification are:
+HelloRetryRequest extensions
+«[tomato42/tlsfuzzer#206](https://github.com/tomato42/tlsfuzzer/issues/206)»
+defined in this specification are:
 
 - supported_versions (see {{supported-versions}})
 
@@ -2255,10 +2260,12 @@ receiving the ServerHello, clients MUST check that the cipher suite
 supplied in the ServerHello is the same as that in the
 HelloRetryRequest and otherwise abort the handshake with an
 "illegal_parameter" alert.
+«[tomato42/tlsfuzzer#244](https://github.com/tomato42/tlsfuzzer/issues/244)»
 
 The value of selected_version in the HelloRetryRequest "supported_versions"
 extension MUST be retained in the ServerHello, and a client MUST abort the
 handshake with an "illegal_parameter" alert if the value changes.
+«[tomato42/tlsfuzzer#244](https://github.com/tomato42/tlsfuzzer/issues/244)»
 
 ##  Extensions
 
