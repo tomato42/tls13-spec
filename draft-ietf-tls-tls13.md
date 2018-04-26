@@ -1845,16 +1845,21 @@ following four sets of options in its ClientHello:
 
 - A list of cipher suites which indicates the AEAD algorithm/HKDF hash
   pairs which the client supports.
+  «[tomato42/tlsfuzzer#193](https://github.com/tomato42/tlsfuzzer/issues/193)»
 - A "supported_groups" ({{negotiated-groups}}) extension which indicates the (EC)DHE groups
   which the client supports and a "key_share" ({{key-share}}) extension which contains
   (EC)DHE shares for some or all of these groups.
+  «[tomato42/tlsfuzzer#213](https://github.com/tomato42/tlsfuzzer/issues/213)»
 - A "signature_algorithms" ({{signature-algorithms}}) extension which indicates the signature
   algorithms which the client can accept.
+  «[tomato42/tlsfuzzer#209](https://github.com/tomato42/tlsfuzzer/issues/209)»
 - A "pre_shared_key" ({{pre-shared-key-extension}}) extension which
   contains a list of symmetric key identities known to the client and a
   "psk_key_exchange_modes" ({{pre-shared-key-exchange-modes}})
   extension which indicates the key exchange modes that may be used
   with PSKs.
+  «[tomato42/tlsfuzzer#229](https://github.com/tomato42/tlsfuzzer/issues/229),
+  [tomato42/tlsfuzzer#230](https://github.com/tomato42/tlsfuzzer/issues/230)»
 
 If the server does not select a PSK, then the first three of these
 options are entirely orthogonal: the server independently selects a
@@ -1866,10 +1871,12 @@ handshake with a "handshake_failure" or an "insufficient_security" alert.
 
 If the server selects a PSK, then it MUST also select a key
 establishment mode from the set indicated by client's
-"psk_key_exchange_modes" extension (at present, PSK alone or with (EC)DHE). Note
+"psk_key_exchange_modes" extension (at present, PSK alone or with (EC)DHE).
+«[tomato42/tlsfuzzer#231](https://github.com/tomato42/tlsfuzzer/issues/231)» Note
 that if the PSK can be used without (EC)DHE then non-overlap in the
 "supported_groups" parameters need not be fatal, as it is in the
 non-PSK case discussed in the previous paragraph.
+«[tomato42/tlsfuzzer#232](https://github.com/tomato42/tlsfuzzer/issues/232)»
 
 If the server selects an (EC)DHE group and the client did not offer a
 compatible "key_share" extension in the initial ClientHello, the server MUST
