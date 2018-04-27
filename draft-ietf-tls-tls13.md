@@ -2411,7 +2411,7 @@ be taken into account when designing new extensions:
        struct {
            select (Handshake.msg_type) {
                case client_hello:
-                    ProtocolVersion versions<2..254>;
+                    ProtocolVersion versions<2..254>; «[tomato42/tlsfuzzer#249](https://github.com/tomato42/tlsfuzzer/issues/249)»
 
                case server_hello: /* and HelloRetryRequest */
                     ProtocolVersion selected_version;
@@ -2427,6 +2427,7 @@ extension in the ClientHello containing all versions of TLS which they are
 prepared to negotiate (for this specification, that means minimally
 0x0304, but if previous versions of TLS are allowed to be negotiated,
 they MUST be present as well).
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»
 
 If this extension is not present, servers which are compliant with
 this specification, and which also support TLS 1.2,
@@ -2434,6 +2435,7 @@ MUST negotiate TLS 1.2 or prior as specified in
 {{RFC5246}}, even if ClientHello.legacy_version is 0x0304 or later.
 Servers MAY abort the handshake upon receiving a ClientHello with
 legacy_version 0x0304 or later.
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»
 
 If this extension is present in the ClientHello, servers MUST NOT use the
 ClientHello.legacy_version value for version negotiation and MUST use only the
@@ -2446,6 +2448,7 @@ one side supports a sparse range. Implementations of TLS 1.3 which choose
 to support prior versions of TLS SHOULD support TLS 1.2.
 Servers MUST be prepared to receive ClientHellos that include this
 extension but do not include 0x0304 in the list of versions.
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»
 
 A server which negotiates a version of TLS prior to TLS 1.3 MUST
 set ServerHello.version and MUST NOT send the "supported_versions"
@@ -2462,6 +2465,7 @@ ServerHello.legacy_version value and MUST use only the
 "supported_versions" extension in the ServerHello contains a version not offered by the
 client or contains a version prior to TLS 1.3, the client MUST abort the handshake with an
 "illegal_parameter" alert.
+«[tomato42/tlsfuzzer#244](https://github.com/tomato42/tlsfuzzer/issues/244)»
 
 
 #### Draft Version Indicator
