@@ -2411,12 +2411,14 @@ be taken into account when designing new extensions:
        struct {
            select (Handshake.msg_type) {
                case client_hello:
-                    ProtocolVersion versions<2..254>; «[tomato42/tlsfuzzer#249](https://github.com/tomato42/tlsfuzzer/issues/249)»
+                    ProtocolVersion versions<2..254>;
 
                case server_hello: /* and HelloRetryRequest */
                     ProtocolVersion selected_version;
            };
        } SupportedVersions;
+
+«parsing: [tomato42/tlsfuzzer#249](https://github.com/tomato42/tlsfuzzer/issues/249)»
 
 The "supported_versions" extension is used by the client to indicate
 which versions of TLS it supports and by the server to indicate
