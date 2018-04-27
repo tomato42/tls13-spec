@@ -2490,6 +2490,8 @@ even if they would otherwise be incompatible.
            opaque cookie<1..2^16-1>;
        } Cookie;
 
+«[tomato42/tlsfuzzer#250](https://github.com/tomato42/tlsfuzzer/issues/250)»
+
 Cookies serve two primary purposes:
 
 - Allowing the server to force the client to demonstrate reachability
@@ -2501,13 +2503,16 @@ Cookies serve two primary purposes:
   a HelloRetryRequest without storing any state. The server can do this by
   storing the hash of the ClientHello in the HelloRetryRequest cookie
   (protected with some suitable integrity algorithm).
+  «[tomato42/tlsfuzzer#251](https://github.com/tomato42/tlsfuzzer/issues/251)»
 
 When sending a HelloRetryRequest, the server MAY provide a "cookie" extension to the
 client (this is an exception to the usual rule that the only extensions that
 may be sent are those that appear in the ClientHello). When sending the
 new ClientHello, the client MUST copy the contents of the extension received in
-the HelloRetryRequest into a "cookie" extension in the new ClientHello.
-Clients MUST NOT use cookies in their initial ClientHello in subsequent connections.
+the HelloRetryRequest into a "cookie" extension in the new ClientHello
+«[tomato42/tlsfuzzer#206](https://github.com/tomato42/tlsfuzzer/issues/206)».
+Clients MUST NOT use cookies in their initial ClientHello in subsequent connections
+«[tomato42/tlsfuzzer#251](https://github.com/tomato42/tlsfuzzer/issues/251)».
 
 When a server is operating statelessly it may receive an unprotected record of
 type change_cipher_spec between the first and second ClientHello (see
