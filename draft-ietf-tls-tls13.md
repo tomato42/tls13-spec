@@ -2870,6 +2870,11 @@ The "extension_data" field of this extension contains a
            NamedGroup named_group_list<2..2^16-1>;
        } NamedGroupList;
 
+«parsing:
+[tomato42/tlsfuzzer#262](https://github.com/tomato42/tlsfuzzer/issues/262),
+big one:
+[tomato42/tlsfuzzer#264](https://github.com/tomato42/tlsfuzzer/issues/264)»
+
 Elliptic Curve Groups (ECDHE)
 : Indicates support for the corresponding named curve, defined
   either in FIPS 186-4 {{DSS}} or in {{RFC7748}}.
@@ -2895,7 +2900,8 @@ ones in the "key_share" extension but is still willing to accept the
 ClientHello, it SHOULD send "supported_groups" to update the client's
 view of its preferences; this extension SHOULD contain all groups
 the server supports, regardless of whether they are currently
-supported by the client.
+supported by the client
+«[tomato42/tlsfuzzer#263](https://github.com/tomato42/tlsfuzzer/issues/263)».
 
 ### Key Share
 
