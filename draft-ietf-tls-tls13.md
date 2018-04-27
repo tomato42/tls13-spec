@@ -2826,7 +2826,8 @@ offer this extension. Servers MUST NOT send this extension.
        struct {} PostHandshakeAuth;
 
 The "extension_data" field of the "post_handshake_auth" extension is zero
-length.
+length
+«[tomato42/tlsfuzzer#261](https://github.com/tomato42/tlsfuzzer/issues/261)».
 
 ### Negotiated Groups
 
