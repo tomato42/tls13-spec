@@ -2741,6 +2741,8 @@ CertificateAuthoritiesExtension structure.
            DistinguishedName authorities<3..2^16-1>;
        } CertificateAuthoritiesExtension;
 
+«[tomato42/tlsfuzzer#260](https://github.com/tomato42/tlsfuzzer/issues/260)»
+
 authorities
 : A list of the distinguished names {{X501}} of acceptable
   certificate authorities, represented in DER-encoded {{X690}} format.  These
