@@ -2939,6 +2939,9 @@ contains a "KeyShareClientHello" value:
            KeyShareEntry client_shares<0..2^16-1>;
        } KeyShareClientHello;
 
+«parsing:
+[tomato42/tlsfuzzer#265](https://github.com/tomato42/tlsfuzzer/issues/265)»
+
 client_shares
 : A list of offered KeyShareEntry values in descending order of client preference.
 {:br }
@@ -2949,7 +2952,8 @@ Each KeyShareEntry value MUST correspond to a group offered in the
 values MAY be a non-contiguous subset of the "supported_groups" extension and
 MAY omit the most preferred groups. Such a situation could arise if the most
 preferred groups are new and unlikely to be supported in enough places to
-make pregenerating key shares for them efficient.
+make pregenerating key shares for them efficient
+«[tomato42/tlsfuzzer#266](https://github.com/tomato42/tlsfuzzer/issues/266)».
 
 Clients can offer as many KeyShareEntry values as the number of supported
 groups it is offering, each
@@ -2961,7 +2965,8 @@ KeyShareEntry values for the same group.  Clients MUST NOT offer any
 KeyShareEntry values for groups not listed in the client's
 "supported_groups" extension.  Servers MAY check for violations of
 these rules and abort the handshake with an "illegal_parameter" alert
-if one is violated.
+if one is violated
+«[tomato42/tlsfuzzer#266](https://github.com/tomato42/tlsfuzzer/issues/266)».
 
 In a HelloRetryRequest message, the "extension_data" field of this
 extension contains a KeyShareHelloRetryRequest value:
@@ -2978,14 +2983,19 @@ selected_group
 
 Upon receipt of this extension in a HelloRetryRequest, the client MUST
 verify that (1) the selected_group field corresponds to a group which was provided
-in the "supported_groups" extension in the original ClientHello; and (2)
+in the "supported_groups" extension in the original ClientHello
+«[tomato42/tlsfuzzer#267](https://github.com/tomato42/tlsfuzzer/issues/267)»;
+and (2)
 the selected_group field does not correspond to a group which was
-provided in the "key_share" extension in the original ClientHello. If either of
+provided in the "key_share" extension in the original ClientHello
+«[tomato42/tlsfuzzer#267](https://github.com/tomato42/tlsfuzzer/issues/267)».
+If either of
 these checks fails, then the client MUST abort the handshake with an
 "illegal_parameter" alert.  Otherwise, when sending the new ClientHello, the
 client MUST replace the original "key_share" extension with one
 containing only a new KeyShareEntry for the group indicated in the
-selected_group field of the triggering HelloRetryRequest.
+selected_group field of the triggering HelloRetryRequest
+«[tomato42/tlsfuzzer#234](https://github.com/tomato42/tlsfuzzer/issues/234)».
 
 In a ServerHello message, the "extension_data" field of this
 extension contains a KeyShareServerHello value:
@@ -3003,7 +3013,8 @@ server_share
 If using (EC)DHE key establishment, servers offer exactly one
 KeyShareEntry in the ServerHello. This value MUST be in the same group
 as the KeyShareEntry value offered
-by the client that the server has selected for the negotiated key exchange.
+by the client that the server has selected for the negotiated key exchange
+«[tomato42/tlsfuzzer#267](https://github.com/tomato42/tlsfuzzer/issues/267)».
 Servers MUST NOT send a KeyShareEntry for any group not
 indicated in the "supported_groups" extension and
 MUST NOT send a KeyShareEntry when using the "psk_ke" PskKeyExchangeMode.
