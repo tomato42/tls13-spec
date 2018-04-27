@@ -2524,25 +2524,36 @@ MUST ignore these records.
 
 TLS 1.3 provides two extensions for indicating which signature
 algorithms may be used in digital signatures. The
-"signature_algorithms_cert" extension applies to signatures in
+"signature_algorithms_cert" extension
+«[tomato42/tlsfuzzer#210](https://github.com/tomato42/tlsfuzzer/issues/210),
+[tomato42/tlsfuzzer#204](https://github.com/tomato42/tlsfuzzer/issues/204)»
+applies to signatures in
 certificates and the "signature_algorithms" extension, which originally
 appeared in TLS 1.2, applies to signatures in CertificateVerify
 messages. The keys found in certificates MUST also be of
 appropriate type for the signature algorithms they are used
-with. This is a particular issue for RSA keys and PSS signatures,
+with
+«[tomato42/tlsfuzzer#211](https://github.com/tomato42/tlsfuzzer/issues/211),
+[tomato42/tlsfuzzer#252](https://github.com/tomato42/tlsfuzzer/issues/252),
+[tomato42/tlsfuzzer#253](https://github.com/tomato42/tlsfuzzer/issues/253)».
+This is a particular issue for RSA keys and PSS signatures,
 as described below. If no "signature_algorithms_cert" extension is present,
 then the "signature_algorithms" extension also applies to signatures
-appearing in certificates. Clients which desire the server to authenticate
+appearing in certificates
+«[tomato42/tlsfuzzer#210](https://github.com/tomato42/tlsfuzzer/issues/210)».
+Clients which desire the server to authenticate
 itself via a certificate MUST send "signature_algorithms". If a server
 is authenticating via a certificate and the client has not sent a
 "signature_algorithms" extension, then the server MUST abort the
-handshake with a "missing_extension" alert (see {{mti-extensions}}).
+handshake with a "missing_extension" alert (see {{mti-extensions}})
+«[tomato42/tlsfuzzer#254](https://github.com/tomato42/tlsfuzzer/issues/254)».
 
 The "signature_algorithms_cert" extension was added to allow implementations
 which supported different sets of algorithms for certificates and in TLS itself
 to clearly signal their capabilities. TLS 1.2 implementations SHOULD also process
 this extension. Implementations which have the same policy in both cases
-MAY omit the "signature_algorithms_cert" extension.
+MAY omit the "signature_algorithms_cert" extension
+«[tomato42/tlsfuzzer#210](https://github.com/tomato42/tlsfuzzer/issues/210)».
 
 The "extension_data" field of these extensions contains a
 SignatureSchemeList value:
@@ -2596,6 +2607,9 @@ SignatureSchemeList value:
            SignatureScheme supported_signature_algorithms<2..2^16-2>;
        } SignatureSchemeList;
 
+«parsing:
+[tomato42/tlsfuzzer#255](https://github.com/tomato42/tlsfuzzer/issues/255)»
+
 Note: This enum is named "SignatureScheme" because there is already
 a "SignatureAlgorithm" type in TLS 1.2, which this replaces.
 We use the term "signature algorithm" throughout the text.
@@ -2615,12 +2629,14 @@ RSASSA-PKCS1-v1_5 algorithms
   {{server-certificate-selection}}) and are not defined for use in signed
   TLS handshake messages, although they MAY appear in "signature_algorithms"
   and "signature_algorithms_cert" for backward compatibility with TLS 1.2,
+  «[tomato42/tlsfuzzer#209](https://github.com/tomato42/tlsfuzzer/issues/209)»
 
 ECDSA algorithms
 : Indicates a signature algorithm using ECDSA {{ECDSA}}, the corresponding
   curve as defined in ANSI X9.62 {{X962}} and FIPS 186-4 {{DSS}}, and the
   corresponding hash algorithm as defined in {{!SHS}}. The signature is
   represented as a DER-encoded {{X690}} ECDSA-Sig-Value structure.
+  «[tomato42/tlsfuzzer#252](https://github.com/tomato42/tlsfuzzer/issues/252)»
 
 RSASSA-PSS RSAE algorithms
 : Indicates a signature algorithm using RSASSA-PSS {{RFC8017}} with mask
@@ -2629,12 +2645,16 @@ RSASSA-PSS RSAE algorithms
   both the corresponding hash algorithm as defined in {{!SHS}}.
   The length of the salt MUST be equal to the length of the output of the
   digest algorithm. If the public key is carried
-  in an X.509 certificate, it MUST use the rsaEncryption OID {{!RFC5280}}.
+  in an X.509 certificate
+  «[tomato42/tlsfuzzer#256](https://github.com/tomato42/tlsfuzzer/issues/256)»,
+  it MUST use the rsaEncryption OID {{!RFC5280}}.
+  «[tomato42/tlsfuzzer#211](https://github.com/tomato42/tlsfuzzer/issues/211)»
 
 EdDSA algorithms
 : Indicates a signature algorithm using EdDSA as defined in
   {{RFC8032}} or its successors. Note that these correspond to the
   "PureEdDSA" algorithms and not the "prehash" variants.
+  «[tomato42/tlsfuzzer#253](https://github.com/tomato42/tlsfuzzer/issues/253)»
 
 RSASSA-PSS PSS algorithms
 : Indicates a signature algorithm using RSASSA-PSS {{RFC8017}} with mask
@@ -2647,11 +2667,17 @@ RSASSA-PSS PSS algorithms
   the algorithm parameters MUST be DER encoded. If the corresponding
   public key's parameters are present, then the parameters in the signature
   MUST be identical to those in the public key.
+  «[tomato42/tlsfuzzer#211](https://github.com/tomato42/tlsfuzzer/issues/211)»
 
 Legacy algorithms
 : Indicates algorithms which are being deprecated because they use
   algorithms with known weaknesses, specifically SHA-1 which is used
-  in this context with either with RSA using RSASSA-PKCS1-v1_5 or ECDSA.  These values
+  in this context with either with RSA using RSASSA-PKCS1-v1_5
+  «[tomato42/tlsfuzzer#209](https://github.com/tomato42/tlsfuzzer/issues/209)»
+  or ECDSA
+  «[tomato42/tlsfuzzer#257](https://github.com/tomato42/tlsfuzzer/issues/257),
+  [tomato42/tlsfuzzer#258](https://github.com/tomato42/tlsfuzzer/issues/258)».
+  These values
   refer solely to signatures which appear in certificates (see
   {{server-certificate-selection}}) and are not defined for use in
   signed TLS handshake messages, although they MAY appear in "signature_algorithms"
@@ -2689,6 +2715,7 @@ willing to negotiate TLS 1.2 MUST behave in accordance with the requirements of
   However, the old semantics did not constrain the signing curve.  If TLS 1.2 is
   negotiated, implementations MUST be prepared to accept a signature that uses
   any curve that they advertised in the "supported_groups" extension.
+  «[tomato42/tlsfuzzer#259](https://github.com/tomato42/tlsfuzzer/issues/259)»
 
 * Implementations that advertise support for RSASSA-PSS (which is mandatory in
   TLS 1.3), MUST be prepared to accept a signature using that scheme even when
