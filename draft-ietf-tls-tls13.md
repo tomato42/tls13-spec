@@ -2608,7 +2608,9 @@ SignatureSchemeList value:
        } SignatureSchemeList;
 
 «parsing:
-[tomato42/tlsfuzzer#255](https://github.com/tomato42/tlsfuzzer/issues/255)»
+[tomato42/tlsfuzzer#255](https://github.com/tomato42/tlsfuzzer/issues/255),
+limits:
+[tomato42/tlsfuzzer#215](https://github.com/tomato42/tlsfuzzer/issues/215)»
 
 Note: This enum is named "SignatureScheme" because there is already
 a "SignatureAlgorithm" type in TLS 1.2, which this replaces.
