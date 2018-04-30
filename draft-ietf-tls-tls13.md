@@ -3077,10 +3077,12 @@ that for Q = (x, y) both integers x and y are in the correct interval, (3)
 ensure that (x, y) is a correct solution to the elliptic curve
 equation.  For these curves, implementers do not need to verify
 membership in the correct subgroup.
+«[tomato42/tlsfuzzer#269](https://github.com/tomato42/tlsfuzzer/issues/269)»
 
 For X25519 and X448, the contents of the public value are the byte string inputs and outputs of the
 corresponding functions defined in {{RFC7748}}, 32 bytes for X25519 and 56
-bytes for X448.
+bytes for X448
+«[tomato42/tlsfuzzer#273](https://github.com/tomato42/tlsfuzzer/issues/273)».
 
 Note: Versions of TLS prior to 1.3 permitted point format negotiation;
 TLS 1.3 removes this feature in favor of a single point format
