@@ -3091,19 +3091,23 @@ for each curve.
 ### Pre-Shared Key Exchange Modes
 
 In order to use PSKs, clients MUST also send a "psk_key_exchange_modes"
-extension. The semantics of this extension are that the client only
+extension
+«[tomato42/tlsfuzzer#231](https://github.com/tomato42/tlsfuzzer/issues/231)».
+The semantics of this extension are that the client only
 supports the use of PSKs with these modes, which restricts both the
 use of PSKs offered in this ClientHello and those which the server
 might supply via NewSessionTicket.
 
 A client MUST provide a "psk_key_exchange_modes" extension if it offers
 a "pre_shared_key" extension. If clients offer "pre_shared_key" without
-a "psk_key_exchange_modes" extension, servers MUST abort the handshake.
+a "psk_key_exchange_modes" extension, servers MUST abort the handshake
+«[tomato42/tlsfuzzer#231](https://github.com/tomato42/tlsfuzzer/issues/231)».
 Servers MUST NOT select a key exchange mode that is not listed by the
 client. This extension also restricts the modes for use with PSK resumption;
 servers SHOULD NOT send NewSessionTicket with tickets that are not
 compatible with the advertised modes; however, if a server does so, the impact
-will just be that the client's attempts at resumption fail.
+will just be that the client's attempts at resumption fail
+«[tomato42/tlsfuzzer#274](https://github.com/tomato42/tlsfuzzer/issues/274).
 
 The server MUST NOT send a "psk_key_exchange_modes" extension.
 
@@ -3114,6 +3118,9 @@ The server MUST NOT send a "psk_key_exchange_modes" extension.
        struct {
            PskKeyExchangeMode ke_modes<1..255>;
        } PskKeyExchangeModes;
+
+«parsing:
+[tomato42/tlsfuzzer#231](https://github.com/tomato42/tlsfuzzer/issues/231)»
 
 psk_ke
 : PSK-only key establishment. In this mode, the server MUST NOT
