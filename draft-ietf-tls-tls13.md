@@ -3142,7 +3142,8 @@ in the ServerHello.
 When a PSK is used and early data is allowed for that PSK, the client can send application data
 in its first flight of messages. If the client opts to do so, it MUST
 supply both the "early_data" extension as well as the "pre_shared_key"
-extension.
+extension
+«[tomato42/tlsfuzzer#276](https://github.com/tomato42/tlsfuzzer/issues/276)».
 
 The "extension_data" field of this extension contains an
 "EarlyDataIndication" value.
@@ -3159,6 +3160,9 @@ The "extension_data" field of this extension contains an
            };
        } EarlyDataIndication;
 
+«parsing:
+[tomato42/tlsfuzzer#277](https://github.com/tomato42/tlsfuzzer/issues/277)»
+
 See {{NSTMessage}} for the use of the max_early_data_size field.
 
 The parameters for the 0-RTT data (version, symmetric cipher suite, ALPN
@@ -3166,7 +3170,9 @@ protocol, etc.) are those associated with the PSK in use.
 For externally provisioned PSKs, the associated values are those
 provisioned along with the key.  For PSKs established via a NewSessionTicket
 message, the associated values are those which were negotiated in the connection
-which established the PSK. The PSK used to encrypt the early data
+which established the PSK
+«[tomato42/tlsfuzzer#279](https://github.com/tomato42/tlsfuzzer/issues/279)».
+The PSK used to encrypt the early data
 MUST be the first PSK listed in the client's "pre_shared_key" extension.
 
 For PSKs provisioned via NewSessionTicket, a server MUST validate that
@@ -3176,7 +3182,8 @@ is within a small tolerance of the
 time since the ticket was issued (see {{anti-replay}}).  If it is not,
 the server SHOULD proceed with the handshake but reject 0-RTT, and
 SHOULD NOT take any other action that assumes that this ClientHello is
-fresh.
+fresh
+«[tomato42/tlsfuzzer#278](https://github.com/tomato42/tlsfuzzer/issues/278)».
 
 0-RTT messages sent in the first flight have the same (encrypted) content types
 as messages of the same type sent in other flights (handshake and
@@ -3191,14 +3198,17 @@ MUST behave in one of three ways:
 
 - Ignore the extension and return a regular 1-RTT response.  The server then
   skips past early data by attempting to deprotect received records using the handshake traffic
-  key, discarding records which fail deprotection (up to the configured max_early_data_size).
+  key, discarding records which fail deprotection (up to the configured max_early_data_size)
+  «[tomato42/tlsfuzzer#280](https://github.com/tomato42/tlsfuzzer/issues/280)».
   Once a record is deprotected
   successfully, it is treated as the start of the client's second flight
   and the server proceeds as with an ordinary 1-RTT handshake.
 
 - Request that the client send another ClientHello by responding with a
   HelloRetryRequest.  A client MUST NOT include the "early_data" extension in
-  its followup ClientHello.  The server then ignores early data by skipping
+  its followup ClientHello
+  «[tomato42/tlsfuzzer#235](https://github.com/tomato42/tlsfuzzer/issues/235)».
+  The server then ignores early data by skipping
   all records with external content type of "application_data" (indicating
   that they are encrypted), up to the configured max_early_data_size.
 
@@ -3242,7 +3252,8 @@ then it MUST comply with the same error handling requirements
 specified for all records when processing early data records.
 Specifically, if the server fails to decrypt a 0-RTT record following
 an accepted "early_data" extension it MUST terminate the connection
-with a "bad_record_mac" alert as per {{record-payload-protection}}.
+with a "bad_record_mac" alert as per {{record-payload-protection}}
+«[tomato42/tlsfuzzer#281](https://github.com/tomato42/tlsfuzzer/issues/281)».
 
 If the server rejects the "early_data" extension, the client
 application MAY opt to retransmit the application data previously
