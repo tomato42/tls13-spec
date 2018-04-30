@@ -3474,7 +3474,8 @@ message, followed by the rest of the handshake.
 In order to avoid deadlocks, when accepting "early_data",
 servers MUST process the client's ClientHello and then immediately
 send their flight of messages, rather than waiting for the client's
-EndOfEarlyData message before sending its ServerHello.
+EndOfEarlyData message before sending its ServerHello
+«[tomato42/tlsfuzzer#291](https://github.com/tomato42/tlsfuzzer/issues/291)».
 
 ## Server Parameters
 
@@ -3496,7 +3497,9 @@ establish the cryptographic context, but which are not
 associated with individual certificates. The client
 MUST check EncryptedExtensions for the presence of any forbidden
 extensions and if any are found MUST abort the handshake with an
-"illegal_parameter" alert.
+"illegal_parameter" alert
+«[tomato42/tlsfuzzer#192](https://github.com/tomato42/tlsfuzzer/issues/192),
+[tomato42/tlsfuzzer#206](https://github.com/tomato42/tlsfuzzer/issues/206)».
 
 Structure of this message:
 
