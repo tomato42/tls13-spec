@@ -3032,14 +3032,16 @@ The opaque value contains the
 Diffie-Hellman public value (Y = g^X mod p) for the specified group
 (see {{RFC7919}} for group definitions)
 encoded as a big-endian integer and padded to the left with zeros to the size of p in
-bytes.
+bytes
+«[tomato42/tlsfuzzer#268](https://github.com/tomato42/tlsfuzzer/issues/268)».
 
 Note: For a given Diffie-Hellman group, the padding results in all public keys
 having the same length.
 
 Peers MUST validate each other's public key Y by ensuring that 1 < Y
 < p-1. This check ensures that the remote peer is properly behaved and
-isn't forcing the local system into a small subgroup.
+isn't forcing the local system into a small subgroup
+«[tomato42/tlsfuzzer#268](https://github.com/tomato42/tlsfuzzer/issues/268)».
 
 #### ECDHE Parameters {#ecdhe-param}
 
