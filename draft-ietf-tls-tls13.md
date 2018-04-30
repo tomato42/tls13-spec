@@ -3302,17 +3302,23 @@ The "extension_data" field of this extension contains a
            };
        } PreSharedKeyExtension;
 
+«parsing:
+[tomato42/tlsfuzzer#247](https://github.com/tomato42/tlsfuzzer/issues/247)»
+
 identity
 : A label for a key. For instance, a ticket defined
   in {{ticket-establishment}} or a label for a pre-shared key
-  established externally.
+  established externally
+  «[tomato42/tlsfuzzer#230](https://github.com/tomato42/tlsfuzzer/issues/230)».
 
 obfuscated_ticket_age
 : An obfuscated version of the age of the key.
   {{ticket-age}} describes how to form this value
   for identities established via the NewSessionTicket message.
   For identities established externally an obfuscated_ticket_age of 0
-  SHOULD be used, and servers MUST ignore the value.
+  SHOULD be used, and servers MUST ignore the value
+  «[tomato42/tlsfuzzer#278](https://github.com/tomato42/tlsfuzzer/issues/278),
+  [tomato42/tlsfuzzer#282](https://github.com/tomato42/tlsfuzzer/issues/282)».
 
 identities
 : A list of the identities that the client is willing
@@ -3323,7 +3329,8 @@ identities
 binders
 : A series of HMAC values, one for
   each PSK offered in the "pre_shared_keys" extension and in the same
-  order, computed as described below.
+  order, computed as described below
+  «[tomato42/tlsfuzzer#229](https://github.com/tomato42/tlsfuzzer/issues/229)».
 
 selected_identity
 : The server's chosen identity expressed as a (0-based) index into
@@ -3332,7 +3339,8 @@ selected_identity
 
 Each PSK is associated with a single Hash algorithm. For PSKs established
 via the ticket mechanism ({{NSTMessage}}), this is the KDF Hash algorithm
-on the connection where the ticket was established.
+on the connection where the ticket was established
+«[tomato42/tlsfuzzer#194](https://github.com/tomato42/tlsfuzzer/issues/194)».
 For externally established PSKs, the Hash algorithm MUST be set when the
 PSK is established, or default to SHA-256 if no such algorithm
 is defined. The server MUST ensure that it selects a compatible
@@ -3377,17 +3385,20 @@ indicating a Hash associated with the PSK and that a server
 "key_share" extension is present if required by the
 ClientHello "psk_key_exchange_modes". If these values are not
 consistent the client MUST abort the handshake with an
-"illegal_parameter" alert.
+"illegal_parameter" alert
+«[tomato42/tlsfuzzer#283](https://github.com/tomato42/tlsfuzzer/issues/283)».
 
 If the server supplies an "early_data" extension, the client MUST
 verify that the server's selected_identity is 0. If any
 other value is returned, the client MUST abort the handshake
-with an "illegal_parameter" alert.
+with an "illegal_parameter" alert
+«[tomato42/tlsfuzzer#283](https://github.com/tomato42/tlsfuzzer/issues/283)».
 
 The "pre_shared_key" extension MUST be the last extension in the
 ClientHello (this facilitates implementation as described
 below). Servers MUST check that it is the last extension and otherwise
-fail the handshake with an "illegal_parameter" alert.
+fail the handshake with an "illegal_parameter" alert
+«[tomato42/tlsfuzzer#247](https://github.com/tomato42/tlsfuzzer/issues/247)».
 
 #### Ticket Age
 
