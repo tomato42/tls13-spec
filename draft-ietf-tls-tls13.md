@@ -3427,7 +3427,9 @@ handshake, as well as a binding between the handshake in which the PSK was
 generated (if via a NewSessionTicket message) and the current handshake.
 Each entry in the binders list is computed as an HMAC
 over a transcript hash (see {{the-transcript-hash}}) containing a partial ClientHello
-up to and including the PreSharedKeyExtension.identities field. That
+up to and including the PreSharedKeyExtension.identities field
+«[tomato42/tlsfuzzer#214](https://github.com/tomato42/tlsfuzzer/issues/214)».
+That
 is, it includes all of the ClientHello but not the binders list
 itself. The length fields for the message (including the overall
 length, the length of the extensions block, and the length of the
@@ -3437,11 +3439,14 @@ lengths were present.
 The PskBinderEntry is computed in the same way as the Finished
 message ({{finished}}) but with the BaseKey being the binder_key
 derived via the key schedule from the corresponding PSK which
-is being offered (see {{key-schedule}}).
+is being offered (see {{key-schedule}})
+«[tomato42/tlsfuzzer#289](https://github.com/tomato42/tlsfuzzer/issues/289)».
 
 If the handshake includes a HelloRetryRequest, the initial ClientHello
 and HelloRetryRequest are included in the transcript along with the
-new ClientHello.  For instance, if the client sends ClientHello1, its
+new ClientHello
+«[tomato42/tlsfuzzer#214](https://github.com/tomato42/tlsfuzzer/issues/214)».
+For instance, if the client sends ClientHello1, its
 binder will be computed over:
 
        Transcript-Hash(Truncate(ClientHello1))
@@ -3458,7 +3463,8 @@ ClientHello2, its binder will be computed over:
 The full ClientHello1/ClientHello2 is included in all other handshake hash computations.
 Note that in the first flight, Truncate(ClientHello1) is hashed directly,
 but in the second flight, ClientHello1 is hashed and then reinjected as a
-"message_hash" message, as described in {{the-transcript-hash}}.
+"message_hash" message, as described in {{the-transcript-hash}}
+«[tomato42/tlsfuzzer#290](https://github.com/tomato42/tlsfuzzer/issues/290)».
 
 #### Processing Order
 
