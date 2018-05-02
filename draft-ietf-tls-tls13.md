@@ -3582,7 +3582,8 @@ flight. The Certificate and CertificateVerify messages are only
 sent under certain circumstances, as defined below. The Finished
 message is always sent as part of the Authentication block.
 These messages are encrypted under keys derived from
-\[sender]_handshake_traffic_secret.
+\[sender]_handshake_traffic_secret
+«[tomato42/tlsfuzzer#298](https://github.com/tomato42/tlsfuzzer/issues/298)».
 
 The computations for the Authentication messages all uniformly
 take the following inputs:
@@ -3601,10 +3602,12 @@ Certificate
 
 CertificateVerify
 : A signature over the value Transcript-Hash(Handshake Context, Certificate)
+  «[tomato42/tlsfuzzer#299](https://github.com/tomato42/tlsfuzzer/issues/299)»
 
 Finished
 : A MAC over the value Transcript-Hash(Handshake Context, Certificate, CertificateVerify)
   using a MAC key derived from the base key.
+  «[tomato42/tlsfuzzer#298](https://github.com/tomato42/tlsfuzzer/issues/298)»
 {:br}
 
 
