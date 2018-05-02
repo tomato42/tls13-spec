@@ -3517,7 +3517,8 @@ extensions
 
 A server which is authenticating with a certificate MAY optionally
 request a certificate from the client. This message, if sent, MUST
-follow EncryptedExtensions.
+follow EncryptedExtensions
+«[tomato42/tlsfuzzer#198](https://github.com/tomato42/tlsfuzzer/issues/198)».
 
 Structure of this message:
 
@@ -3547,7 +3548,8 @@ extensions
   certificate being requested. The "signature_algorithms"
   extension MUST be specified, and other extensions may optionally be
   included if defined for this message.
-  Clients MUST ignore unrecognized extensions.
+  Clients MUST ignore unrecognized extensions
+  «[tomato42/tlsfuzzer#206](https://github.com/tomato42/tlsfuzzer/issues/206)».
 {:br}
 
 In prior versions of TLS, the CertificateRequest message
@@ -3556,13 +3558,16 @@ which the server would accept. In TLS 1.3 the former is expressed
 by sending the "signature_algorithms" and optionally "signature_algorithms_cert"
 extensions. The latter is
 expressed by sending the "certificate_authorities" extension
-(see {{certificate-authorities}}).
+(see {{certificate-authorities}})
+«[tomato42/tlsfuzzer#295](https://github.com/tomato42/tlsfuzzer/issues/295)».
 
 Servers which are authenticating with a PSK MUST NOT send the
 CertificateRequest message in the main handshake, though they
 MAY send it in post-handshake authentication (see {{post-handshake-authentication}})
 provided that the client has sent the "post_handshake_auth"
-extension (see {{post_handshake_auth}}).
+extension (see {{post_handshake_auth}})
+«[tomato42/tlsfuzzer#296](https://github.com/tomato42/tlsfuzzer/issues/296),
+[tomato42/tlsfuzzer#297](https://github.com/tomato42/tlsfuzzer/issues/297)».
 
 
 ## Authentication Messages
