@@ -3822,12 +3822,15 @@ The following rules apply to the certificates sent by the server:
 - The server's end-entity certificate's public key (and associated
   restrictions) MUST be compatible with the selected authentication
   algorithm from the client's "signature_algorithms" extension
-  (currently RSA, ECDSA, or EdDSA).
+  (currently RSA, ECDSA, or EdDSA)
+  «[tomato42/tlsfuzzer#197](https://github.com/tomato42/tlsfuzzer/issues/197),
+  [tomato42/tlsfuzzer#196](https://github.com/tomato42/tlsfuzzer/issues/196)».
 
 - The certificate MUST allow the key to be used for signing (i.e., the
   digitalSignature bit MUST be set if the Key Usage extension is present) with
   a signature scheme indicated in the client's "signature_algorithms"/"signature_algorithms_cert"
-  extensions (see {{signature-algorithms}}).
+  extensions (see {{signature-algorithms}})
+  «[tomato42/tlsfuzzer#313](https://github.com/tomato42/tlsfuzzer/issues/313)».
 
 - The "server_name" {{RFC6066}} and "certificate_authorities" extensions are used to
   guide certificate selection. As servers MAY require the presence of the "server_name"
