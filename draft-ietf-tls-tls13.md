@@ -3626,7 +3626,10 @@ Many of the cryptographic computations in TLS make use of a transcript
 hash. This value is computed by hashing the concatenation of
 each included handshake message, including the handshake
 message header carrying the handshake message type and length fields,
-but not including record layer headers. I.e.,
+but not including record layer headers
+«[tomato42/tlsfuzzer#298](https://github.com/tomato42/tlsfuzzer/issues/298),
+[tomato42/tlsfuzzer#299](https://github.com/tomato42/tlsfuzzer/issues/299)».
+I.e.,
 
      Transcript-Hash(M1, M2, ... Mn) = Hash(M1 || M2 || ... || Mn)
 
@@ -3640,6 +3643,8 @@ type "message_hash" containing Hash(ClientHello1). I.e.,
               00 00 Hash.length ||   /* Handshake message length (bytes) */
               Hash(ClientHello1) ||  /* Hash of ClientHello1 */
               HelloRetryRequest || ... || Mn)
+
+«[tomato42/tlsfuzzer#290](https://github.com/tomato42/tlsfuzzer/issues/290)»
 
 The reason for this construction is to allow the server to do a
 stateless HelloRetryRequest by storing just the hash of ClientHello1
@@ -3657,7 +3662,8 @@ Certificate, client CertificateVerify, client Finished.
 In general, implementations can implement the transcript by keeping a
 running transcript hash value based on the negotiated hash. Note,
 however, that subsequent post-handshake authentications do not include
-each other, just the messages through the end of the main handshake.
+each other, just the messages through the end of the main handshake
+«[tomato42/tlsfuzzer#301](https://github.com/tomato42/tlsfuzzer/issues/301)».
 
 ###  Certificate
 
