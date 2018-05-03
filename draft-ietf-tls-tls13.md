@@ -4141,9 +4141,12 @@ derived from the resumption master secret (see {{cryptographic-computations}}).
 
 The client MAY use this PSK for future handshakes by including the
 ticket value in the "pre_shared_key" extension in its ClientHello
-({{pre-shared-key-extension}}). Servers MAY send multiple tickets on a
+({{pre-shared-key-extension}})
+«[tomato42/tlsfuzzer#184](https://github.com/tomato42/tlsfuzzer/issues/184)».
+Servers MAY send multiple tickets on a
 single connection, either immediately after each other or
-after specific events (see {{client-tracking}}).
+after specific events (see {{client-tracking}})
+«[tomato42/tlsfuzzer#319](https://github.com/tomato42/tlsfuzzer/issues/319)».
 For instance, the server might send a new ticket after post-handshake
 authentication in order to encapsulate the additional client
 authentication state. Multiple tickets are useful for clients
@@ -4154,7 +4157,8 @@ for a variety of purposes, including:
 via, e.g., Happy Eyeballs {{RFC8305}} or related techniques.
 
 Any ticket MUST only be resumed with a cipher suite that has the
-same KDF hash algorithm as that used to establish the original connection.
+same KDF hash algorithm as that used to establish the original connection
+«[tomato42/tlsfuzzer#194](https://github.com/tomato42/tlsfuzzer/issues/194)».
 
 Clients MUST only resume if the new SNI value is valid for the server
 certificate presented in the original session, and SHOULD only resume if
@@ -4176,7 +4180,9 @@ Note: Although the resumption master secret depends on the client's second
 flight, servers which do not request client authentication MAY compute
 the remainder of the transcript independently and then send a
 NewSessionTicket immediately upon sending its Finished rather than
-waiting for the client Finished.  This might be appropriate in cases
+waiting for the client Finished
+«[tomato42/tlsfuzzer#320](https://github.com/tomato42/tlsfuzzer/issues/320)».
+This might be appropriate in cases
 where the client is expected to open multiple TLS connections in
 parallel and would benefit from the reduced overhead of a resumption
 handshake, for example.
@@ -4231,7 +4237,9 @@ The sole extension currently defined for NewSessionTicket is
 
 max_early_data_size
 : The maximum amount of 0-RTT data that the client is allowed to send when using
-  this ticket, in bytes. Only Application Data payload (i.e., plaintext but
+  this ticket, in bytes
+  «[tomato42/tlsfuzzer#280](https://github.com/tomato42/tlsfuzzer/issues/280)»
+  . Only Application Data payload (i.e., plaintext but
   not padding or the inner content type byte) is counted. A server
   receiving more than max_early_data_size bytes of 0-RTT data
   SHOULD terminate the connection with an "unexpected_message" alert.
@@ -4246,6 +4254,8 @@ The PSK associated with the ticket is computed as:
     HKDF-Expand-Label(resumption_master_secret,
                      "resumption", ticket_nonce, Hash.length)
 ~~~~
+
+«[tomato42/tlsfuzzer#289](https://github.com/tomato42/tlsfuzzer/issues/289)»
 
 Because the ticket_nonce value is distinct for each NewSessionTicket
 message, a different PSK will be derived for each ticket.
