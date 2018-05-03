@@ -4108,10 +4108,17 @@ server in response to client Certificate and CertificateVerify messages.
 
        struct {} EndOfEarlyData;
 
+«parsing:
+[tomato42/tlsfuzzer#318](https://github.com/tomato42/tlsfuzzer/issues/318)»
+
 If the server sent an "early_data" extension, the client MUST send an
 EndOfEarlyData message after receiving the server Finished.  If the server does
 not send an "early_data" extension, then the client MUST NOT send an
-EndOfEarlyData message. This message indicates that all
+EndOfEarlyData message
+«not really testable, as the server replying without "early_data" extension,
+will, by definition, not be decrypting early data, so it will not know
+which records contain Appplication Data and which EndOfEarlyData».
+This message indicates that all
 0-RTT application_data messages, if any, have been transmitted and
 that the following records are protected under handshake traffic keys.
 Servers MUST NOT send this message and clients receiving it
