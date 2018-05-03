@@ -3865,7 +3865,8 @@ layer endpoint, local configuration and preferences).
 The following rules apply to certificates sent by the client:
 
 - The certificate type MUST be X.509v3 {{RFC5280}}, unless explicitly negotiated
-  otherwise (e.g., {{RFC7250}}).
+  otherwise (e.g., {{RFC7250}})
+  «[tomato42/tlsfuzzer#314](https://github.com/tomato42/tlsfuzzer/issues/314)».
 
 - If the "certificate_authorities" extension in the CertificateRequest
   message was present, at least one of the certificates in the certificate
