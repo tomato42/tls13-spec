@@ -3787,26 +3787,30 @@ an extension in the CertificateEntry containing the associated
 certificate. Specifically:
 The body of the "status_request" extension
 from the server MUST be a CertificateStatus structure as defined
-in {{RFC6066}}, which is interpreted as defined in {{!RFC6960}}.
+in {{RFC6066}}, which is interpreted as defined in {{!RFC6960}}
+«[tomato42/tlsfuzzer#310](https://github.com/tomato42/tlsfuzzer/issues/310)».
 
 Note: status_request_v2 extension ({{!RFC6961}}) is deprecated. TLS 1.3 servers
 MUST NOT act upon its presence or information in it when processing Client
 Hello, in particular they MUST NOT send the status_request_v2 extension in the
 Encrypted Extensions, Certificate Request or the Certificate messages.
 TLS 1.3 servers MUST be able to process Client Hello messages that include it,
-as it MAY be sent by clients that wish to use it in earlier protocol versions.
+as it MAY be sent by clients that wish to use it in earlier protocol versions
+«[tomato42/tlsfuzzer#309](https://github.com/tomato42/tlsfuzzer/issues/309)».
 
 A server MAY request that a client present an OCSP response with its
 certificate by sending an empty "status_request" extension in its
 CertificateRequest message. If the client opts to send an OCSP response, the
 body of its "status_request" extension MUST be a CertificateStatus structure as
-defined in {{RFC6066}}.
+defined in {{RFC6066}}
+«[tomato42/tlsfuzzer#311](https://github.com/tomato42/tlsfuzzer/issues/311)».
 
 Similarly, {{!RFC6962}} provides a mechanism for a server to send a
 Signed Certificate Timestamp (SCT) as an extension in the ServerHello
 in TLS 1.2 and below.
 In TLS 1.3, the server's SCT information is carried in an extension in
 CertificateEntry.
+«[tomato42/tlsfuzzer#312](https://github.com/tomato42/tlsfuzzer/issues/312)»
 
 #### Server Certificate Selection
 
