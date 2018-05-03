@@ -3678,7 +3678,9 @@ requested client authentication via a CertificateRequest message
 ({{certificate-request}}). If the server requests client authentication
 but no suitable certificate is available, the client
 MUST send a Certificate message containing no certificates (i.e., with
-the "certificate_list" field having length 0).  A Finished message MUST
+the "certificate_list" field having length 0)
+«[tomato42/tlsfuzzer#302](https://github.com/tomato42/tlsfuzzer/issues/302)».
+A Finished message MUST
 be sent regardless of whether the Certificate message is empty.
 
 Structure of this message:
@@ -3710,14 +3712,19 @@ Structure of this message:
            CertificateEntry certificate_list<0..2^24-1>;
        } Certificate;
 
+«parsing:
+[tomato42/tlsfuzzer#303](https://github.com/tomato42/tlsfuzzer/issues/303)»
+
 certificate_request_context
 : If this message is in response to a CertificateRequest, the
   value of certificate_request_context in that message. Otherwise
-  (in the case of server authentication), this field SHALL be zero length.
+  (in the case of server authentication), this field SHALL be zero length
+  «[tomato42/tlsfuzzer#304](https://github.com/tomato42/tlsfuzzer/issues/304)».
 
 certificate_list
 : This is a sequence (chain) of CertificateEntry structures, each
-  containing a single certificate and set of extensions.
+  containing a single certificate and set of extensions
+  «[tomato42/tlsfuzzer#302](https://github.com/tomato42/tlsfuzzer/issues/302)».
 
 extensions:
 : A set of extension values for the CertificateEntry. The "Extension"
@@ -3727,7 +3734,8 @@ extensions:
   be defined for this message as well. Extensions in the Certificate
   message from the server MUST correspond to ones from the ClientHello message.
   Extensions in the Certificate from the client MUST correspond with
-  extensions in the CertificateRequest message from the server.
+  extensions in the CertificateRequest message from the server
+  «[tomato42/tlsfuzzer#305](https://github.com/tomato42/tlsfuzzer/issues/305)».
   If an extension applies to the entire chain, it SHOULD be included
   in the first CertificateEntry.
 {:br }
@@ -3736,7 +3744,9 @@ If the corresponding certificate type extension
 ("server_certificate_type" or "client_certificate_type") was not negotiated
 in Encrypted Extensions, or the X.509 certificate type was negotiated, then each
 CertificateEntry contains a DER-encoded X.509 certificate. The sender's
-certificate MUST come in the first CertificateEntry in the list.  Each
+certificate MUST come in the first CertificateEntry in the list
+«[tomato42/tlsfuzzer#306](https://github.com/tomato42/tlsfuzzer/issues/306)».
+Each
 following certificate SHOULD directly certify the one immediately preceding it.
 Because certificate validation requires that trust anchors be
 distributed independently, a certificate that specifies a trust anchor
@@ -3755,9 +3765,11 @@ version, with the exception of the end-entity certificate which MUST be first.
 If the RawPublicKey certificate type was negotiated, then the
 certificate_list MUST contain no more than one CertificateEntry, which
 contains an ASN1_subjectPublicKeyInfo value as defined in {{RFC7250}},
-Section 3.
+Section 3
+«[tomato42/tlsfuzzer#307](https://github.com/tomato42/tlsfuzzer/issues/307)».
 
-The OpenPGP certificate type {{RFC6091}} MUST NOT be used with TLS 1.3.
+The OpenPGP certificate type {{RFC6091}} MUST NOT be used with TLS 1.3
+«[tomato42/tlsfuzzer#308](https://github.com/tomato42/tlsfuzzer/issues/308)».
 
 The server's certificate_list MUST always be non-empty. A client will
 send an empty certificate_list if it does not have an appropriate
