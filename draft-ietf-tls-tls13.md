@@ -4272,12 +4272,15 @@ and the time since the peer's online CertificateVerify signature.
 ### Post-Handshake Authentication
 
 When the client has sent the "post_handshake_auth" extension (see
-{{post_handshake_auth}}), a server MAY request client authentication at any time
+{{post_handshake_auth}})
+«[tomato42/tlsfuzzer#261](https://github.com/tomato42/tlsfuzzer/issues/261)»,
+a server MAY request client authentication at any time
 after the handshake has completed by sending a CertificateRequest message. The
 client MUST respond with the appropriate Authentication messages (see
 {{authentication-messages}}). If the client chooses to authenticate, it MUST
 send Certificate, CertificateVerify, and Finished. If it declines, it MUST send
-a Certificate message containing no certificates followed by Finished.
+a Certificate message containing no certificates followed by Finished
+«[tomato42/tlsfuzzer#321](https://github.com/tomato42/tlsfuzzer/issues/321)».
 All of the client's messages for a given response
 MUST appear consecutively on the wire with no intervening messages of other types.
 
@@ -4291,7 +4294,8 @@ other messages between sending the CertificateRequest and receiving a
 response. In addition, clients which receive multiple CertificateRequests in
 close succession MAY respond to them in a different order than they were
 received (the certificate_request_context value allows the server to
-disambiguate the responses).
+disambiguate the responses)
+«[tomato42/tlsfuzzer#322](https://github.com/tomato42/tlsfuzzer/issues/322)».
 
 
 ### Key and IV Update {#key-update}
