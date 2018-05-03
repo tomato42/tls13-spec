@@ -4300,6 +4300,8 @@ disambiguate the responses)
 
 ### Key and IV Update {#key-update}
 
+«[tomato42/tlsfuzzer#323](https://github.com/tomato42/tlsfuzzer/issues/323)»
+
 %%% Updating Keys
 
        enum {
@@ -4310,18 +4312,22 @@ disambiguate the responses)
            KeyUpdateRequest request_update;
        } KeyUpdate;
 
+«parsing:
+[tomato42/tlsfuzzer#324](https://github.com/tomato42/tlsfuzzer/issues/324)»
 
 request_update
 : Indicates whether the recipient of the KeyUpdate should respond with its
   own KeyUpdate. If an implementation receives any other value, it MUST
-  terminate the connection with an "illegal_parameter" alert.
+  terminate the connection with an "illegal_parameter" alert
+  «[tomato42/tlsfuzzer#235](https://github.com/tomato42/tlsfuzzer/issues/325)».
 {:br }
 
 The KeyUpdate handshake message is used to indicate that the sender is
 updating its sending cryptographic keys. This message can be sent by
 either peer after it has sent a Finished message.
 Implementations that receive a KeyUpdate message prior to receiving a Finished message
-MUST terminate the connection with an "unexpected_message" alert.
+MUST terminate the connection with an "unexpected_message" alert
+«[tomato42/tlsfuzzer#228](https://github.com/tomato42/tlsfuzzer/issues/228)».
 After sending a KeyUpdate message, the sender SHALL send all its traffic using the
 next generation of keys, computed as described in {{updating-traffic-keys}}.
 Upon receiving a KeyUpdate, the receiver MUST update its receiving keys.
@@ -4343,6 +4349,7 @@ If implementations independently send their own KeyUpdates with
 request_update set to "update_requested", and they cross in flight, then each side
 will also send a response, with the result that each side increments
 by two generations.
+«[tomato42/tlsfuzzer#326](https://github.com/tomato42/tlsfuzzer/issues/326)»
 
 Both sender and receiver MUST encrypt their KeyUpdate
 messages with the old keys. Additionally, both sides MUST enforce that
