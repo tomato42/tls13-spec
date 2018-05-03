@@ -4038,7 +4038,8 @@ and of the computed keys.
 
 Recipients of Finished messages MUST verify that the contents are
 correct and if incorrect MUST terminate the connection
-with a "decrypt_error" alert.
+with a "decrypt_error" alert
+«[tomato42/tlsfuzzer#212](https://github.com/tomato42/tlsfuzzer/issues/212)».
 
 Once a side has sent its Finished message and received and
 validated the Finished message from its peer, it may begin to send and
@@ -4061,6 +4062,8 @@ finished_key =
     HKDF-Expand-Label(BaseKey, "finished", "", Hash.length)
 ~~~
 
+«[tomato42/tlsfuzzer#298](https://github.com/tomato42/tlsfuzzer/issues/298)»
+
 Structure of this message:
 
 %%% Authentication Messages
@@ -4079,11 +4082,15 @@ The verify_data value is computed as follows:
 
        * Only included if present.
 
+«[tomato42/tlsfuzzer#298](https://github.com/tomato42/tlsfuzzer/issues/298)»
+
 HMAC {{RFC2104}} uses the Hash algorithm for the handshake.
 As noted above, the HMAC input can generally be implemented by a running
 hash, i.e., just the handshake hash at this point.
 
-In previous versions of TLS, the verify_data was always 12 octets long. In
+In previous versions of TLS, the verify_data was always 12 octets long
+«[tomato42/tlsfuzzer#212](https://github.com/tomato42/tlsfuzzer/issues/212)».
+In
 TLS 1.3, it is the size of the HMAC output for the Hash used for the handshake.
 
 Note: Alerts and any other record types are not handshake messages
