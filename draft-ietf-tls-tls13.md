@@ -3924,8 +3924,11 @@ possesses the private key corresponding to its certificate.
 The CertificateVerify message also provides integrity for the handshake up
 to this point. Servers MUST send this message when authenticating via a certificate.
 Clients MUST send this message whenever authenticating via a certificate (i.e., when
-the Certificate message is non-empty). When sent, this message MUST appear immediately
-after the Certificate message and immediately prior to the Finished message.
+the Certificate message is non-empty)
+«[tomato42/tlsfuzzer#315](https://github.com/tomato42/tlsfuzzer/issues/315)».
+When sent, this message MUST appear immediately
+after the Certificate message and immediately prior to the Finished message
+«[tomato42/tlsfuzzer#228](https://github.com/tomato42/tlsfuzzer/issues/228)».
 
 Structure of this message:
 
@@ -3936,11 +3939,19 @@ Structure of this message:
            opaque signature<0..2^16-1>;
        } CertificateVerify;
 
+«parsing:
+[tomato42/tlsfuzzer#316](https://github.com/tomato42/tlsfuzzer/issues/316)»
+
 The algorithm field specifies the signature algorithm used (see
-{{signature-algorithms}} for the definition of this field). The
-signature is a digital signature using that algorithm. The
+{{signature-algorithms}} for the definition of this field)
+«[tomato42/tlsfuzzer#258](https://github.com/tomato42/tlsfuzzer/issues/258)».
+The
+signature is a digital signature using that algorithm
+«[tomato42/tlsfuzzer#317](https://github.com/tomato42/tlsfuzzer/issues/317)».
+The
 content that is covered under the signature is the hash output as described in
-{{the-transcript-hash}}, namely:
+{{the-transcript-hash}}, namely
+«[tomato42/tlsfuzzer#299](https://github.com/tomato42/tlsfuzzer/issues/299):
 
        Transcript-Hash(Handshake Context, Certificate)
 
@@ -3975,6 +3986,9 @@ the digital signature for a server CertificateVerify would be:
        00
        0101010101010101010101010101010101010101010101010101010101010101
 
+«fuzzing:
+[tomato42/tlsfuzzer#299](https://github.com/tomato42/tlsfuzzer/issues/299)»
+
 On the sender side the process for computing the signature field of the
 CertificateVerify message takes as input:
 
@@ -3989,13 +4003,16 @@ algorithms (see {{signature-algorithms}}).
 
 If sent by a client, the signature algorithm used in the signature
 MUST be one of those present in the supported_signature_algorithms
-field of the "signature_algorithms" extension in the CertificateRequest message.
+field of the "signature_algorithms" extension in the CertificateRequest message
+«[tomato42/tlsfuzzer#317](https://github.com/tomato42/tlsfuzzer/issues/317)».
 
 In addition, the signature algorithm MUST be compatible with the key
 in the sender's end-entity certificate. RSA signatures MUST use an
 RSASSA-PSS algorithm, regardless of whether RSASSA-PKCS1-v1_5 algorithms
 appear in "signature_algorithms". The SHA-1 algorithm MUST NOT be used
-in any signatures of CertificateVerify messages.
+in any signatures of CertificateVerify messages
+«[tomato42/tlsfuzzer#317](https://github.com/tomato42/tlsfuzzer/issues/317),
+[tomato42/tlsfuzzer#258](https://github.com/tomato42/tlsfuzzer/issues/258)».
 All SHA-1 signature algorithms in this specification are defined solely
 for use in legacy certificates and are not valid for CertificateVerify
 signatures.
@@ -4005,7 +4022,8 @@ The verification process takes as input:
 
 - The content covered by the digital signature
 - The public key contained in the end-entity certificate found in the
-  associated Certificate message.
+  associated Certificate message
+  «[tomato42/tlsfuzzer#306](https://github.com/tomato42/tlsfuzzer/issues/306)».
 - The digital signature received in the signature field of the
   CertificateVerify message
 
