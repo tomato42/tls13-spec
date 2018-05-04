@@ -4349,13 +4349,15 @@ If implementations independently send their own KeyUpdates with
 request_update set to "update_requested", and they cross in flight, then each side
 will also send a response, with the result that each side increments
 by two generations.
-«[tomato42/tlsfuzzer#326](https://github.com/tomato42/tlsfuzzer/issues/326)»
+«[tomato42/tlsfuzzer#326](https://github.com/tomato42/tlsfuzzer/issues/326),
+[tomato42/tlsfuzzer#330](https://github.com/tomato42/tlsfuzzer/issues/330)»
 
 Both sender and receiver MUST encrypt their KeyUpdate
 messages with the old keys. Additionally, both sides MUST enforce that
 a KeyUpdate with the old key is received before accepting any messages
 encrypted with the new key. Failure to do so may allow message truncation
-attacks.
+attacks
+«[tomato42/tlsfuzzer#329](https://github.com/tomato42/tlsfuzzer/issues/329)».
 
 
 #  Record Protocol
