@@ -4560,6 +4560,7 @@ content
 
 type
 : The TLSPlaintext.type value containing the content type of the record.
+  «[tomato42/tlsfuzzer#334](https://github.com/tomato42/tlsfuzzer/issues/334)»
 
 zeros
 : An arbitrary-length run of zero-valued bytes may
@@ -4567,20 +4568,23 @@ zeros
   opportunity for senders to pad any TLS record by a chosen amount as
   long as the total stays within record size limits.  See
   {{record-padding}} for more details.
+  «[tomato42/tlsfuzzer#199](https://github.com/tomato42/tlsfuzzer/issues/199)»
 
 opaque_type
 : The outer opaque_type field of a TLSCiphertext record is always set to the
   value 23 (application_data) for outward compatibility with
   middleboxes accustomed to parsing previous versions of TLS.  The
   actual content type of the record is found in TLSInnerPlaintext.type after
-  decryption.
+  decryption
+  «[tomato42/tlsfuzzer#347](https://github.com/tomato42/tlsfuzzer/issues/347)».
 
 legacy_record_version
 : The legacy_record_version field is always 0x0303.  TLS 1.3 TLSCiphertexts
   are not generated until after TLS 1.3 has been negotiated, so there are
   no historical compatibility concerns where other values might be received.
   Note that the handshake protocol including the ClientHello and ServerHello
-  messages authenticates the protocol version, so this value is redundant.
+  messages authenticates the protocol version, so this value is redundant
+  «[tomato42/tlsfuzzer#384](https://github.com/tomato42/tlsfuzzer/issues/348)».
 
 length
 : The length (in bytes) of the following TLSCiphertext.encrypted_record, which
@@ -4591,13 +4595,15 @@ length
   terminate the connection with a "record_overflow" alert.
 
 encrypted_record
-: The AEAD-encrypted form of the serialized TLSInnerPlaintext structure.
+: The AEAD-encrypted form of the serialized TLSInnerPlaintext structure
+  «[tomato42/tlsfuzzer#200](https://github.com/tomato42/tlsfuzzer/issues/200)».
 {:br }
 
 
 AEAD algorithms take as input a single key, a nonce, a plaintext, and "additional
 data" to be included in the authentication check, as described in Section 2.1
-of {{RFC5116}}. The key is either the client_write_key or the server_write_key,
+of {{RFC5116}}. The key is either the client_write_key or the server_write_key
+«[tomato42/tlsfuzzer#349](https://github.com/tomato42/tlsfuzzer/issues/349)»,
 the nonce is derived from the sequence number and the
 client_write_iv or server_write_iv (see {{nonce}}), and the additional data input is the
 record header. I.e.,
@@ -4605,6 +4611,9 @@ record header. I.e.,
        additional_data = TLSCiphertext.opaque_type ||
                          TLSCiphertext.legacy_record_version ||
                          TLSCiphertext.length
+
+«[tomato42/tlsfuzzer#347](https://github.com/tomato42/tlsfuzzer/issues/347),
+[tomato42/tlsfuzzer#348](https://github.com/tomato42/tlsfuzzer/issues/348)»
 
 The plaintext input to the AEAD algorithm is the encoded TLSInnerPlaintext structure.
 Derivation of traffic keys is defined in {{traffic-key-calculation}}.
@@ -4639,7 +4648,8 @@ An AEAD algorithm used in TLS 1.3 MUST NOT produce an expansion greater than
 TLSCiphertext.length larger than 2^14 + 256 octets MUST terminate
 the connection with a "record_overflow" alert.
 This limit is derived from the maximum TLSInnerPlaintext length of
-2^14 octets + 1 octet for ContentType + the maximum AEAD expansion of 255 octets.
+2^14 octets + 1 octet for ContentType + the maximum AEAD expansion of 255 octets
+«[tomato42/tlsfuzzer#337](https://github.com/tomato42/tlsfuzzer/issues/337)».
 
 
 ## Per-Record Nonce {#nonce}
