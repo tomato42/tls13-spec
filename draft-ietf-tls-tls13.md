@@ -4364,7 +4364,9 @@ attacks
 
 The TLS record protocol takes messages to be transmitted, fragments
 the data into manageable blocks, protects the records, and transmits
-the result. Received data is verified, decrypted, reassembled, and
+the result. Received data is verified
+«[tomato42/tlsfuzzer#200](https://github.com/tomato42/tlsfuzzer/issues/200)»,
+decrypted, reassembled, and
 then delivered to higher-level clients.
 
 TLS records are typed, which allows multiple higher-level protocols to
@@ -4372,7 +4374,8 @@ be multiplexed over the same record layer. This document specifies
 four content types: handshake, application data, alert, and
 change_cipher_spec.
 The change_cipher_spec record is used only for compatibility purposes
-(see {{middlebox}}).
+(see {{middlebox}})
+«[tomato42/tlsfuzzer#207](https://github.com/tomato42/tlsfuzzer/issues/207)».
 
 An implementation may receive an unencrypted record of type
 change_cipher_spec consisting of the single byte value 0x01 at any
@@ -4384,16 +4387,22 @@ and so it is necessary to detect this
 condition prior to attempting to deprotect the record. An
 implementation which receives any other change_cipher_spec value or
 which receives a protected change_cipher_spec record MUST abort the
-handshake with an "unexpected_message" alert. A change_cipher_spec record
+handshake with an "unexpected_message" alert
+«[tomato42/tlsfuzzer#331](https://github.com/tomato42/tlsfuzzer/issues/331),
+[tomato42/tlsfuzzer#332](https://github.com/tomato42/tlsfuzzer/issues/332)».
+A change_cipher_spec record
 received before the first ClientHello message or after the peer's Finished
 message MUST be treated as an unexpected record type (though stateless
-servers may not be able to distinguish these cases from allowed cases).
+servers may not be able to distinguish these cases from allowed cases)
+«[tomato42/tlsfuzzer#333](https://github.com/tomato42/tlsfuzzer/issues/333)».
 
 
 Implementations MUST NOT send record types not defined in this
 document unless negotiated by some extension.  If a TLS implementation
 receives an unexpected record type, it MUST terminate the connection
-with an "unexpected_message" alert.  New record content type values
+with an "unexpected_message" alert
+«[tomato42/tlsfuzzer#334](https://github.com/tomato42/tlsfuzzer/issues/334)».
+New record content type values
 are assigned by IANA in the TLS Content Type Registry as described in
 {{iana-considerations}}.
 
