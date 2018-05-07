@@ -5335,7 +5335,8 @@ x-coordinate of the ECDH shared secret elliptic curve point represented
 as an octet string.  Note that this octet string (Z in IEEE 1363 terminology)
 as output by FE2OSP, the Field Element to Octet String Conversion
 Primitive, has constant length for any given field; leading zeros
-found in this octet string MUST NOT be truncated.
+found in this octet string MUST NOT be truncated
+«[tomato42/tlsfuzzer#269](https://github.com/tomato42/tlsfuzzer/issues/269)»
 
 (Note that this use of the identity KDF is a technicality.  The
 complete picture is that ECDH is employed with a non-trivial KDF
@@ -5360,6 +5361,7 @@ shared secret is the all-zero value and abort if so, as described in
 Section 6 of {{RFC7748}}. If implementors use an alternative
 implementation of these elliptic curves, they SHOULD perform the
 additional checks specified in Section 7 of {{RFC7748}}.
+«[tomato42/tlsfuzzer#273](https://github.com/tomato42/tlsfuzzer/issues/273)»
 
 
 ## Exporters
