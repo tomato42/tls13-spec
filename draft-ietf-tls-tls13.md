@@ -5260,7 +5260,9 @@ been computed, that secret SHOULD be erased.
 
 Once the handshake is complete, it is possible for either side to
 update its sending traffic keys using the KeyUpdate handshake message
-defined in {{key-update}}.  The next generation of traffic keys is computed by
+defined in {{key-update}}
+«[tomato42/tlsfuzzer#323](https://github.com/tomato42/tlsfuzzer/issues/323)».
+The next generation of traffic keys is computed by
 generating client_/server_application_traffic_secret_N+1 from
 client_/server_application_traffic_secret_N as described in
 this section then re-deriving the traffic keys as described in
@@ -5277,6 +5279,7 @@ The next-generation application_traffic_secret is computed as:
 Once client/server_application_traffic_secret_N+1 and its associated
 traffic keys have been computed, implementations SHOULD delete
 client_/server_application_traffic_secret_N and its associated traffic keys.
+«[tomato42/tlsfuzzer#329](https://github.com/tomato42/tlsfuzzer/issues/329)»
 
 
 ## Traffic Key Calculation
