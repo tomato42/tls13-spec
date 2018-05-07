@@ -5610,6 +5610,10 @@ received, and not when later early application data records are
 received. After early data is accepted, records may continue to be
 streamed to the server over a longer time period.
 
+«the whole 0-RTT section is just a set of recommendations, nothing concrete
+so we can't really create a universal test case for this behaviour
+[tomato42/tlsfuzzer#362](https://github.com/tomato42/tlsfuzzer/issues/362)»
+
 #  Compliance Requirements
 
 ##  Mandatory-to-Implement Cipher Suites
