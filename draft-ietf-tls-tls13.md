@@ -4784,7 +4784,9 @@ that conveyed the severity of the message in previous versions of
 TLS. Alerts are divided into
 two classes: closure alerts and error alerts.  In TLS 1.3, the
 severity is implicit in the type of alert
-being sent, and the 'level' field can safely be ignored. The "close_notify" alert
+being sent, and the 'level' field can safely be ignored
+«[tomato42/tlsfuzzer#356](https://github.com/tomato42/tlsfuzzer/issues/356)».
+The "close_notify" alert
 is used to indicate orderly closure of one direction of the connection.
 Upon receiving such an alert, the TLS implementation SHOULD
 indicate end-of-data to the application.
@@ -4793,7 +4795,9 @@ Error alerts indicate abortive closure of the
 connection (see {{error-alerts}}). Upon receiving an error alert,
 the TLS implementation SHOULD indicate an error to the application and
 MUST NOT allow any further data to be sent or received on the
-connection.  Servers and clients MUST forget the secret values and
+connection
+«[tomato42/tlsfuzzer#356](https://github.com/tomato42/tlsfuzzer/issues/356)».
+Servers and clients MUST forget the secret values and
 keys established in failed connections, with the exception of
 the PSKs associated with session tickets, which SHOULD be discarded if
 possible.
