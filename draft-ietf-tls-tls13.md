@@ -4656,16 +4656,22 @@ This limit is derived from the maximum TLSInnerPlaintext length of
 
 A 64-bit sequence number is maintained separately for reading and writing
 records. The appropriate sequence number is incremented by one after
-reading or writing each record.  Each sequence number is set to zero
-at the beginning of a connection and whenever the key is changed; the
+reading or writing each record
+«[tomato42/tlsfuzzer#351](https://github.com/tomato42/tlsfuzzer/issues/351).
+Each sequence number is set to zero
+at the beginning of a connection and whenever the key is changed
+«[tomato42/tlsfuzzer#350](https://github.com/tomato42/tlsfuzzer/issues/350)»;
+the
 first record transmitted under a particular traffic key MUST use
-sequence number 0.
+sequence number 0
+«[tomato42/tlsfuzzer#351](https://github.com/tomato42/tlsfuzzer/issues/351)».
 
 
 Because the size of sequence numbers is 64-bit, they should not
 wrap. If a TLS implementation would need to
 wrap a sequence number, it MUST either re-key ({{key-update}}) or
-terminate the connection.
+terminate the connection
+«[tomato42/tlsfuzzer#352](https://github.com/tomato42/tlsfuzzer/issues/352)».
 
 Each AEAD algorithm will specify a range of possible lengths for the
 per-record nonce, from N_MIN bytes to N_MAX bytes of input ({{RFC5116}}).
@@ -4678,7 +4684,8 @@ The per-record nonce for the AEAD construction is formed as follows:
      and padded to the left with zeros to iv_length.
 
   2. The padded sequence number is XORed with the static client_write_iv
-     or server_write_iv, depending on the role.
+     or server_write_iv, depending on the role
+     «[tomato42/tlsfuzzer#350](https://github.com/tomato42/tlsfuzzer/issues/350)».
 
 The resulting quantity (of length iv_length) is used as the per-record nonce.
 
