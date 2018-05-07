@@ -4898,7 +4898,8 @@ required to react to a "close_notify" by discarding pending writes and
 sending an immediate "close_notify" alert of their own. That previous
 requirement could cause truncation in the read side. Both parties need not
 wait to receive a "close_notify" alert before closing their read side of the
-connection, though doing so would introduce the possibility of truncation.
+connection, though doing so would introduce the possibility of truncation
+«[tomato42/tlsfuzzer#357](https://github.com/tomato42/tlsfuzzer/issues/357)».
 
 If the application protocol using TLS provides that any data may be carried
 over the underlying transport after the TLS connection is closed, the TLS
