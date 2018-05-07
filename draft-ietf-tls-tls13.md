@@ -5133,7 +5133,11 @@ Hash.length is its output length in bytes. Messages is the concatenation of the
 indicated handshake messages, including the handshake message type
 and length fields, but not including record layer headers. Note that
 in some cases a zero-length Context (indicated by "") is passed to
-HKDF-Expand-Label.  The Labels specified in this document are all
+HKDF-Expand-Label
+«[tomato42/tlsfuzzer#289](https://github.com/tomato42/tlsfuzzer/issues/289),
+[tomato42/tlsfuzzer#298](https://github.com/tomato42/tlsfuzzer/issues/298),
+[tomato42/tlsfuzzer#349](https://github.com/tomato42/tlsfuzzer/issues/349)».
+The Labels specified in this document are all
 ASCII strings, and do not include a trailing NUL byte.
 
 Note: with common hash functions, any label longer than 12 characters
@@ -5158,11 +5162,13 @@ In this diagram, the following formatting conventions apply:
 - HKDF-Extract is drawn as taking the Salt argument from the top and
   the IKM argument from the left, with its output to the bottom and
   the name of the output on the right.
+  «[tomato42/tlsfuzzer#358](https://github.com/tomato42/tlsfuzzer/issues/358)»
 
 - Derive-Secret's Secret argument is indicated by the incoming
   arrow. For instance, the Early Secret is the Secret for
   generating the client_early_traffic_secret.
 - "0" indicates a string of Hash-lengths bytes set to 0.
+  «[tomato42/tlsfuzzer#359](https://github.com/tomato42/tlsfuzzer/issues/359)»
 
 ~~~~
                  0
@@ -5230,13 +5236,16 @@ called with four distinct transcripts; in a 1-RTT-only exchange
 with three distinct transcripts.
 
 If a given secret is not available, then the 0-value consisting of
-a string of Hash.length bytes set to zeros is used.  Note that this does not mean skipping
+a string of Hash.length bytes set to zeros is used
+«[tomato42/tlsfuzzer#359](https://github.com/tomato42/tlsfuzzer/issues/359)».
+Note that this does not mean skipping
 rounds, so if PSK is not in use Early Secret will still be
 HKDF-Extract(0, 0). For the computation of the binder_secret, the label is
 "ext binder" for external PSKs (those provisioned outside of TLS)
 and "res binder" for resumption PSKs (those provisioned as the resumption
 master secret of a previous handshake). The different labels prevent
-the substitution of one type of PSK for the other.
+the substitution of one type of PSK for the other
+«[tomato42/tlsfuzzer#289](https://github.com/tomato42/tlsfuzzer/issues/289)».
 
 There are multiple potential Early Secret values depending on
 which PSK the server ultimately selects. The client will need to compute
