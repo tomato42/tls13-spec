@@ -4921,7 +4921,9 @@ parties MUST immediately close the connection.
 
 Whenever an implementation encounters a fatal error condition, it
 SHOULD send an appropriate fatal alert and MUST close the connection
-without sending or receiving any additional data. In the rest of this
+without sending or receiving any additional data
+«this is tested by basically every script that verifies that an alert was sent».
+In the rest of this
 specification, when the phrases "terminate the connection" and "abort the
 handshake" are used without a specific alert it means that the
 implementation SHOULD send the alert indicated by the descriptions
@@ -4939,6 +4941,8 @@ unexpected_message
 : An inappropriate message (e.g., the wrong handshake message, premature
   application data, etc.) was received. This alert should never be
   observed in communication between proper implementations.
+  «e.g.
+  [tomato42/tlsfuzzer#353](https://github.com/tomato42/tlsfuzzer/issues/353)»
 
 bad_record_mac
 : This alert is returned if a record is received which cannot be
@@ -4948,6 +4952,8 @@ bad_record_mac
   This alert should never be observed in communication between
   proper implementations, except when messages were corrupted
   in the network.
+  «e.g.
+  [tomato42/tlsfuzzer#351](https://github.com/tomato42/tlsfuzzer/issues/351)»
 
 record_overflow
 : A TLSCiphertext record was received that had a length more than
@@ -4956,15 +4962,21 @@ record_overflow
   This alert should never be observed in communication between
   proper implementations, except when messages were corrupted
   in the network.
+  «e.g.
+  [tomato42/tlsfuzzer#337](https://github.com/tomato42/tlsfuzzer/issues/337)»
 
 handshake_failure
 : Receipt of a "handshake_failure" alert message indicates that the
   sender was unable to negotiate an acceptable set of security
   parameters given the options available.
+  «e.g.
+  [tomato42/tlsfuzzer#257](https://github.com/tomato42/tlsfuzzer/issues/257)»
 
 bad_certificate
 : A certificate was corrupt, contained signatures that did not
   verify correctly, etc.
+  «e.g.
+  [tomato42/tlsfuzzer#117](https://github.com/tomato42/tlsfuzzer/issues/117)»
 
 unsupported_certificate
 : A certificate was of an unsupported type.
@@ -4983,6 +4995,8 @@ illegal_parameter
 : A field in the handshake was incorrect or inconsistent with
   other fields. This alert is used for errors which conform to
   the formal protocol syntax but are otherwise incorrect.
+  «e.g.
+  [tomato42/tlsfuzzer#241](https://github.com/tomato42/tlsfuzzer/issues/241)»
 
 unknown_ca
 : A valid certificate chain or partial chain was received, but the
@@ -5001,20 +5015,28 @@ decode_error
   This alert should never be observed in communication between
   proper implementations, except when messages were corrupted
   in the network.
+  «e.g.
+  [tomato42/tlsfuzzer#262](https://github.com/tomato42/tlsfuzzer/issues/262)»
 
 decrypt_error
 : A handshake (not record-layer) cryptographic operation failed, including being unable
   to correctly verify a signature or validate a Finished message
   or a PSK binder.
+  «e.g.
+  [tomato42/tlsfuzzer#256](https://github.com/tomato42/tlsfuzzer/issues/256)»
 
 protocol_version
 : The protocol version the peer has attempted to negotiate is
   recognized but not supported. (see {{backward-compatibility}})
+  «e.g.
+  [tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»
 
 insufficient_security
 : Returned instead of "handshake_failure" when a negotiation has
   failed specifically because the server requires parameters more
   secure than those supported by the client.
+  «e.g.
+  [tomato42/tlsfuzzer#213](https://github.com/tomato42/tlsfuzzer/issues/213)»
 
 internal_error
 : An internal error unrelated to the peer or the correctness of the
@@ -5024,17 +5046,21 @@ internal_error
 inappropriate_fallback
 : Sent by a server in response to an invalid connection retry attempt
   from a client (see {{!RFC7507}}).
+  «already exists: `scripts/test-fallback-scsv.py`»
 
 missing_extension
 : Sent by endpoints that receive a handshake message not containing an
   extension that is mandatory to send for the offered TLS version
   or other negotiated parameters.
+  «[tomato42/tlsfuzzer#254](https://github.com/tomato42/tlsfuzzer/issues/254)»
 
 unsupported_extension
 : Sent by endpoints receiving any handshake message containing an extension
   known to be prohibited for inclusion in the given handshake message, or including
   any extensions in a ServerHello or Certificate not first offered in the
   corresponding ClientHello.
+  «e.g.
+  [tomato42/tlsfuzzer#305](https://github.com/tomato42/tlsfuzzer/issues/305)»
 
 unrecognized_name
 : Sent by servers when no server exists identified by the name
