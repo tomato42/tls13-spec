@@ -5641,12 +5641,25 @@ In the absence of an application profile standard specifying otherwise, a
 TLS-compliant application MUST implement the following TLS extensions:
 
   * Supported Versions     ("supported_versions"; {{supported-versions}})
+    «[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203),
+    [tomato42/tlsfuzzer#249](https://github.com/tomato42/tlsfuzzer/issues/249)»
   * Cookie                 ("cookie"; {{cookie}})
+    «[tomato42/tlsfuzzer#236](https://github.com/tomato42/tlsfuzzer/issues/236),
+    [tomato42/tlsfuzzer#250](https://github.com/tomato42/tlsfuzzer/issues/250)»
   * Signature Algorithms   ("signature_algorithms"; {{signature-algorithms}})
+    «e.g.
+    [tomato42/tlsfuzzer#254](https://github.com/tomato42/tlsfuzzer/issues/254),
+    [tomato42/tlsfuzzer#255](https://github.com/tomato42/tlsfuzzer/issues/255)»
   * Signature Algorithms Certificate  ("signature_algorithms_cert"; {{signature-algorithms}})
+    «[tomato42/tlsfuzzer#210](https://github.com/tomato42/tlsfuzzer/issues/210)»
   * Negotiated Groups      ("supported_groups"; {{negotiated-groups}})
+    «[tomato42/tlsfuzzer#262](https://github.com/tomato42/tlsfuzzer/issues/262),
+    [tomato42/tlsfuzzer#213](https://github.com/tomato42/tlsfuzzer/issues/213)»
   * Key Share              ("key_share"; {{key-share}})
+    «[tomato42/tlsfuzzer#266](https://github.com/tomato42/tlsfuzzer/issues/266),
+    [tomato42/tlsfuzzer#265](https://github.com/tomato42/tlsfuzzer/issues/265)»
   * Server Name Indication ("server_name"; Section 3 of {{RFC6066}})
+    «script already exists: `scripts/test-invalid-server-name-extension.py`»
 
 All implementations MUST send and use these extensions when offering
 applicable features:
@@ -5657,7 +5670,10 @@ applicable features:
                             DHE or ECDHE key exchange.
   * "key_share"            is REQUIRED for DHE or ECDHE key exchange.
   * "pre_shared_key"       is REQUIRED for PSK key agreement.
+    «[tomato42/tlsfuzzer#191](https://github.com/tomato42/tlsfuzzer/issues/191),
+    [tomato42/tlsfuzzer#190](https://github.com/tomato42/tlsfuzzer/issues/190)»
   * "psk_key_exchange_modes" is REQUIRED for PSK key agreement.
+    «[tomato42/tlsfuzzer#231](https://github.com/tomato42/tlsfuzzer/issues/231)»
 
 A client is considered to be attempting to negotiate using this
 specification if the ClientHello contains a "supported_versions"
@@ -5665,10 +5681,14 @@ extension with 0x0304 contained in its body.
 Such a ClientHello message MUST meet the following requirements:
 
  - If not containing a "pre_shared_key" extension, it MUST contain both
-   a "signature_algorithms" extension and a "supported_groups" extension.
+   a "signature_algorithms" extension
+   «[tomato42/tlsfuzzer#254](https://github.com/tomato42/tlsfuzzer/issues/254)»
+   and a "supported_groups" extension
+   «[tomato42/tlsfuzzer#363](https://github.com/tomato42/tlsfuzzer/issues/363)».
  - If containing a "supported_groups" extension, it MUST also contain a
    "key_share" extension, and vice versa. An empty KeyShare.client_shares
-   vector is permitted.
+   vector is permitted
+   «[tomato42/tlsfuzzer#364](https://github.com/tomato42/tlsfuzzer/issues/364)».
 
 Servers receiving a ClientHello which does not conform to these
 requirements MUST abort the handshake with a "missing_extension"
