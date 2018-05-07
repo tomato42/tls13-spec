@@ -4697,7 +4697,8 @@ specified a partially explicit nonce.
 
 All encrypted TLS records can be padded to inflate the size of the
 TLSCiphertext.  This allows the sender to hide the size of the
-traffic from an observer.
+traffic from an observer
+«[tomato42/tlsfuzzer#199](https://github.com/tomato42/tlsfuzzer/issues/199)».
 
 When generating a TLSCiphertext record, implementations MAY choose to pad.
 An unpadded record is just a record with a padding length of zero.
@@ -4706,9 +4707,15 @@ field before encryption.  Implementations MUST set the padding octets
 to all zeros before encrypting.
 
 Application Data records may contain a zero-length TLSInnerPlaintext.content if
-the sender desires.  This permits generation of plausibly-sized cover
+the sender desires
+«[tomato42/tlsfuzzer#346](https://github.com/tomato42/tlsfuzzer/issues/346)».
+This permits generation of plausibly-sized cover
 traffic in contexts where the presence or absence of activity may be
-sensitive.  Implementations MUST NOT send Handshake or Alert records
+sensitive.  Implementations MUST NOT send Handshake
+«[tomato42/tlsfuzzer#344](https://github.com/tomato42/tlsfuzzer/issues/344)»
+or Alert
+«[tomato42/tlsfuzzer#353](https://github.com/tomato42/tlsfuzzer/issues/353)»
+records
 that have a zero-length TLSInnerPlaintext.content; if such a message
 is received, the receiving implementation MUST terminate the connection
 with an "unexpected_message" alert.
@@ -4717,20 +4724,26 @@ The padding sent is automatically verified by the record protection
 mechanism; upon successful decryption of a TLSCiphertext.encrypted_record,
 the receiving implementation scans the field from the end toward the
 beginning until it finds a non-zero octet. This non-zero octet is the
-content type of the message.
+content type of the message
+«padding oracle:
+[tomato42/tlsfuzzer#354](https://github.com/tomato42/tlsfuzzer/issues/354)».
 This padding scheme was selected because it allows padding of any encrypted
 TLS record by an arbitrary size (from zero up to TLS record size
 limits) without introducing new content types.  The design also
 enforces all-zero padding octets, which allows for quick detection of
-padding errors.
+padding errors
+«[tomato42/tlsfuzzer#334](https://github.com/tomato42/tlsfuzzer/issues/334)».
 
 Implementations MUST limit their scanning to the cleartext returned
 from the AEAD decryption.  If a receiving implementation does not find
 a non-zero octet in the cleartext, it MUST terminate the
-connection with an "unexpected_message" alert.
+connection with an "unexpected_message" alert
+«[tomato42/tlsfuzzer#355](https://github.com/tomato42/tlsfuzzer/issues/355)».
 
 The presence of padding does not change the overall record size limitations
-- the full encoded TLSInnerPlaintext MUST NOT exceed 2^14 + 1 octets. If the
+- the full encoded TLSInnerPlaintext MUST NOT exceed 2^14 + 1 octets
+«[tomato42/tlsfuzzer#337](https://github.com/tomato42/tlsfuzzer/issues/337)».
+If the
 maximum fragment length is reduced, as for example by the max_fragment_length
 extension from [RFC6066], then the reduced limit applies to the full plaintext,
 including the content type and padding.
