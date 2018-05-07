@@ -5319,7 +5319,8 @@ For finite field groups, a conventional Diffie-Hellman
 {{!DH76=DOI.10.1109/TIT.1976.1055638}} computation is performed.
 The negotiated key (Z) is converted to a byte string by encoding in big-endian and
 left padded with zeros up to the size of the prime. This byte string is used as the
-shared secret in the key schedule as specified above.
+shared secret in the key schedule as specified above
+«[tomato42/tlsfuzzer#268](https://github.com/tomato42/tlsfuzzer/issues/268)».
 
 Note that this construction differs from previous versions of TLS which remove
 leading zeros.
