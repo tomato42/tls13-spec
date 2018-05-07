@@ -5431,6 +5431,7 @@ concerns not all deployments will maintain state at that level.  Therefore, in
 normal operation, clients will not know which, if any, of these mechanisms
 servers actually implement and hence MUST only send early data which they deem
 safe to be replayed.
+«[tomato42/tlsfuzzer#361](https://github.com/tomato42/tlsfuzzer/issues/361)»
 
 In addition to the direct effects of replays, there is a class of attacks where
 even operations normally considered idempotent could be exploited by a large
