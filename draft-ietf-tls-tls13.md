@@ -5366,6 +5366,7 @@ additional checks specified in Section 7 of {{RFC7748}}.
 
 ## Exporters
 
+«[tomato42/tlsfuzzer#360](https://github.com/tomato42/tlsfuzzer/issues/360)»
 {{!RFC5705}} defines keying material exporters for TLS in terms of the TLS
 pseudorandom function (PRF). This document replaces the PRF with HKDF, thus
 requiring a new construction. The exporter interface remains the same.
