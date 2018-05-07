@@ -4768,7 +4768,8 @@ do a key update as described in {{key-update}} prior to reaching these limits.
 
 For AES-GCM, up to 2^24.5 full-size records (about 24 million)
 may be encrypted on a given connection while keeping a safety
-margin of approximately 2^-57 for Authenticated Encryption (AE) security.
+margin of approximately 2^-57 for Authenticated Encryption (AE) security
+«[tomato42/tlsfuzzer#352](https://github.com/tomato42/tlsfuzzer/issues/352)».
 For ChaCha20/Poly1305, the record sequence number would wrap before the
 safety limit is reached.
 
