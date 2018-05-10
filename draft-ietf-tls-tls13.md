@@ -6080,7 +6080,8 @@ things that require special attention from implementors.
 TLS protocol issues:
 
 - Do you correctly handle handshake messages that are fragmented to
-  multiple TLS records (see {{record-layer}})? Including corner cases
+  multiple TLS records (see {{record-layer}})
+  «`scripts/test-record-layer-fragmentation.py`»? Including corner cases
   like a ClientHello that is split to several small fragments? Do
   you fragment handshake messages that exceed the maximum fragment
   size? In particular, the Certificate and CertificateRequest
@@ -6088,56 +6089,84 @@ TLS protocol issues:
 
 - Do you ignore the TLS record layer version number in all unencrypted TLS
   records? (see {{backward-compatibility}})
+  «[tomato42/tlsfuzzer#348](https://github.com/tomato42/tlsfuzzer/issues/348),
+  [tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»
 
-- Have you ensured that all support for SSL, RC4, EXPORT ciphers, and
-  MD5 (via the "signature_algorithms" extension) is completely removed from
+- Have you ensured that all support for SSL, RC4, EXPORT ciphers
+  «[tomato42/tlsfuzzer#365](https://github.com/tomato42/tlsfuzzer/issues/365)»,
+  and MD5
+  «[tomato42/tlsfuzzer#295](https://github.com/tomato42/tlsfuzzer/issues/295),
+  [tomato42/tlsfuzzer#209](https://github.com/tomato42/tlsfuzzer/issues/209),
+  [tomato42/tlsfuzzer#257](https://github.com/tomato42/tlsfuzzer/issues/257)»
+  (via the "signature_algorithms" extension) is completely removed from
   all possible configurations that support TLS 1.3 or later, and that
   attempts to use these obsolete capabilities fail correctly?
   (see {{backward-compatibility}})
 
 - Do you handle TLS extensions in ClientHello correctly, including
   unknown extensions?
+  «[tomato42/tlsfuzzer#366](https://github.com/tomato42/tlsfuzzer/issues/366)»
 
 - When the server has requested a client certificate, but no
   suitable certificate is available, do you correctly send an empty
   Certificate message, instead of omitting the whole message (see
   {{client-certificate-selection}})?
+  «[tomato42/tlsfuzzer#302](https://github.com/tomato42/tlsfuzzer/issues/302),
+  [tomato42/tlsfuzzer#315](https://github.com/tomato42/tlsfuzzer/issues/315)»
 
 - When processing the plaintext fragment produced by AEAD-Decrypt and
   scanning from the end for the ContentType, do you avoid scanning
   past the start of the cleartext in the event that the peer has sent
   a malformed plaintext of all-zeros?
+  «[tomato42/tlsfuzzer#355](https://github.com/tomato42/tlsfuzzer/issues/355)»
 
 - Do you properly ignore unrecognized cipher suites
-  ({{client-hello}}), hello extensions ({{extensions}}), named groups
-  ({{negotiated-groups}}), key shares ({{key-share}}),
-  supported versions ({{supported-versions}}),
-  and signature algorithms ({{signature-algorithms}}) in the
+  ({{client-hello}})
+  «[tomato42/tlsfuzzer#365](https://github.com/tomato42/tlsfuzzer/issues/365)»,
+  hello extensions ({{extensions}})
+  «[tomato42/tlsfuzzer#366](https://github.com/tomato42/tlsfuzzer/issues/366)»,
+  named groups
+  ({{negotiated-groups}})
+  «[tomato42/tlsfuzzer#264](https://github.com/tomato42/tlsfuzzer/issues/264)»,
+  key shares ({{key-share}})
+  «[tomato42/tlsfuzzer#369](https://github.com/tomato42/tlsfuzzer/issues/369)»,
+  supported versions ({{supported-versions}})
+  «[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»,
+  and signature algorithms ({{signature-algorithms}})
+  «[tomato42/tlsfuzzer#215](https://github.com/tomato42/tlsfuzzer/issues/215)»
+  in the
   ClientHello?
 
 - As a server, do you send a HelloRetryRequest to clients which
   support a compatible (EC)DHE group but do not predict it in the
   "key_share" extension? As a client, do you correctly handle a
   HelloRetryRequest from the server?
+  «hehe, where to start...
+  [tomato42/tlsfuzzer#183](https://github.com/tomato42/tlsfuzzer/issues/183)»
 
 Cryptographic details:
 
 - What countermeasures do you use to prevent timing attacks {{TIMING}}?
+  «[tomato42/tlsfuzzer#106](https://github.com/tomato42/tlsfuzzer/issues/106)»
 
 - When using Diffie-Hellman key exchange, do you correctly preserve
   leading zero bytes in the negotiated key (see {{finite-field-diffie-hellman}})?
+  «[tomato42/tlsfuzzer#268](https://github.com/tomato42/tlsfuzzer/issues/268)»
 
 - Does your TLS client check that the Diffie-Hellman parameters sent
   by the server are acceptable, (see {{ffdhe-param}})?
+  «[tomato42/tlsfuzzer#268](https://github.com/tomato42/tlsfuzzer/issues/268)»
 
 - Do you use a strong and, most importantly, properly seeded random number
   generator (see {{random-number-generation-and-seeding}}) when generating Diffie-Hellman
   private values, the ECDSA "k" parameter, and other security-critical values?
   It is RECOMMENDED that implementations implement "deterministic ECDSA"
   as specified in {{!RFC6979}}.
+  «[tomato42/tlsfuzzer#60](https://github.com/tomato42/tlsfuzzer/issues/60)»
 
 - Do you zero-pad Diffie-Hellman public key values to the group size (see
   {{ffdhe-param}})?
+  «[tomato42/tlsfuzzer#268](https://github.com/tomato42/tlsfuzzer/issues/268)»
 
 - Do you verify signatures after making them to protect against RSA-CRT
   key leaks? {{FW15}}
