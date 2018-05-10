@@ -6005,15 +6005,21 @@ This specification defines the following cipher suites for use with TLS 1.3.
 | TLS_AES_128_CCM_SHA256          | {0x13,0x04} |
 | TLS_AES_128_CCM_8_SHA256        | {0x13,0x05} |
 
-The corresponding AEAD algorithms AEAD_AES_128_GCM, AEAD_AES_256_GCM, and
-AEAD_AES_128_CCM are defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 is defined
-in {{RFC7539}}. AEAD_AES_128_CCM_8 is defined in {{RFC6655}}. The corresponding
+The corresponding AEAD algorithms AEAD_AES_128_GCM «supported»,
+AEAD_AES_256_GCM «supported», and
+AEAD_AES_128_CCM
+«[tomato42/tlsfuzzer#368](https://github.com/tomato42/tlsfuzzer/issues/368)»
+are defined in {{RFC5116}}. AEAD_CHACHA20_POLY1305 «supported» is defined
+in {{RFC7539}}. AEAD_AES_128_CCM_8
+«[tomato42/tlsfuzzer#368](https://github.com/tomato42/tlsfuzzer/issues/368)»
+is defined in {{RFC6655}}. The corresponding
 hash algorithms are defined in {{!SHS}}.
 
 Although TLS 1.3 uses the same cipher suite space as previous versions
 of TLS, TLS 1.3 cipher suites are defined differently, only specifying
 the symmetric ciphers, and cannot be used for TLS 1.2. Similarly,
 TLS 1.2 and lower cipher suites cannot be used with TLS 1.3.
+«[tomato42/tlsfuzzer#365](https://github.com/tomato42/tlsfuzzer/issues/365)»
 
 New cipher suite values are assigned by IANA as described in
 {{iana-considerations}}.
