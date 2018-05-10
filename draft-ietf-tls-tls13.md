@@ -6043,7 +6043,9 @@ unsatisfactory, {{RFC4086}} provides guidance on the generation of random values
 
 TLS uses random values both in public protocol fields such as the
 public Random values in the ClientHello and ServerHello and to
-generate keying material. With a properly functioning CSPRNG, this
+generate keying material
+«[tomato42/tlsfuzzer#60](https://github.com/tomato42/tlsfuzzer/issues/60)».
+With a properly functioning CSPRNG, this
 does not present a security problem as it is not feasible to determine
 the CSPRNG state from its output. However, with a broken CSPRNG, it
 may be possible for an attacker to use the public output to determine
