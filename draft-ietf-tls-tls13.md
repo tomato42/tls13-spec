@@ -6190,7 +6190,8 @@ on anonymous Diffie-Hellman. These modes have been deprecated in TLS 1.3.
 However, it is still possible to negotiate parameters that do not provide
 verifiable server authentication by several methods, including:
 
-- Raw public keys {{RFC7250}}.
+- Raw public keys {{RFC7250}}
+  «[tomato42/tlsfuzzer#370](https://github.com/tomato42/tlsfuzzer/issues/370)».
 - Using a public key contained in a certificate but without
   validation of the certificate chain or any of its contents.
 
