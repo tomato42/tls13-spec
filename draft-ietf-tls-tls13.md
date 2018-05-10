@@ -6279,6 +6279,8 @@ to downgrade attacks and is NOT RECOMMENDED.
 
 ## Negotiating with an older client
 
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»
+
 A TLS server can also receive a ClientHello indicating a version number smaller
 than its highest supported version. If the "supported_versions" extension
 is present, the server MUST negotiate using that extension as described in
