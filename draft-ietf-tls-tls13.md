@@ -6871,7 +6871,7 @@ Servers which solely support PSK handshakes may be able to resist
 this form of attack by treating the cases where there is no
 valid PSK identity and where there is an identity but it has an
 invalid binder identically.
-
+«[tomato42/tlsfuzzer#373](https://github.com/tomato42/tlsfuzzer/issues/373)»
 
 ## Attacks on Static RSA
 
