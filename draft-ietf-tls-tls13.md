@@ -5715,7 +5715,8 @@ newer server without terminating TLS should be unable to influence the
 handshake (see {{security-handshake}}). At the same time, deployments
 update at different rates, so a newer client or server MAY continue to
 support older parameters, which would allow it to interoperate with
-older endpoints.
+older endpoints
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)».
 
 For this to work, implementations MUST correctly handle extensible fields:
 
@@ -5724,7 +5725,11 @@ For this to work, implementations MUST correctly handle extensible fields:
   parameters.
 
 - A server receiving a ClientHello MUST correctly ignore all unrecognized
-  cipher suites, extensions, and other parameters. Otherwise, it may fail to
+  cipher suites
+  «[tomato42/tlsfuzzer#365](https://github.com/tomato42/tlsfuzzer/issues/365)»,
+  extensions
+  «[tomato42/tlsfuzzer#366](https://github.com/tomato42/tlsfuzzer/issues/366)»,
+  and other parameters. Otherwise, it may fail to
   interoperate with newer clients. In TLS 1.3, a client receiving a
   CertificateRequest or NewSessionTicket MUST also ignore all unrecognized
   extensions.
