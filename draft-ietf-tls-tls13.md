@@ -5893,6 +5893,7 @@ key to the given key".
  after here                v
                        CONNECTED
 ~~~~
+«[tomato42/tlsfuzzer#367](https://github.com/tomato42/tlsfuzzer/issues/367)»
 
 Note that with the transitions as shown above, clients may send alerts
 that derive from post-ServerHello messages in the clear or with the
