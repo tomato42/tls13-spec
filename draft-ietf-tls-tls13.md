@@ -6652,11 +6652,15 @@ Integrity.
 Order protection/non-replayability
 : An attacker should not be able to cause the receiver to accept a
   record which it has already accepted or cause the receiver to accept
-  record N+1 without having first processed record N.
+  record N+1 without having first processed record N
+  «[tomato42/tlsfuzzer#350](https://github.com/tomato42/tlsfuzzer/issues/350),
+  [tomato42/tlsfuzzer#351](https://github.com/tomato42/tlsfuzzer/issues/351)».
 
 Length concealment.
 : Given a record with a given external length, the attacker should not be able
-to determine the amount of the record that is content versus padding.
+to determine the amount of the record that is content versus padding
+«[tomato42/tlsfuzzer#354](https://github.com/tomato42/tlsfuzzer/issues/354),
+[tomato42/tlsfuzzer#199](https://github.com/tomato42/tlsfuzzer/issues/199)».
 
 Forward secrecy after key change.
 : If the traffic key update mechanism described in {{key-update}} has been
