@@ -6209,6 +6209,8 @@ profile.
 
 # Backward Compatibility
 
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)»
+
 The TLS protocol provides a built-in mechanism for version negotiation between
 endpoints potentially supporting different versions of TLS.
 
@@ -6225,6 +6227,7 @@ TLSPlaintext.legacy_record_version MUST be ignored by all implementations.
 The value of TLSCiphertext.legacy_record_version is included in the
 additional data for deprotection but MAY otherwise be ignored
 or MAY be validated to match the fixed constant value.
+«[tomato42/tlsfuzzer#348](https://github.com/tomato42/tlsfuzzer/issues/348)»
 Version negotiation is performed using only the handshake versions
 (ClientHello.legacy_version, ServerHello.legacy_version, as well as the
 ClientHello, HelloRetryRequest and ServerHello "supported_versions" extensions).
