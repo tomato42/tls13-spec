@@ -6312,6 +6312,7 @@ A client that attempts to send 0-RTT data MUST fail a connection if it receives
 a ServerHello with TLS 1.2 or older.  A client that attempts to repair this
 error SHOULD NOT send a TLS 1.2 ClientHello, but instead send a TLS 1.3
 ClientHello without 0-RTT data.
+«[tomato42/tlsfuzzer#371](https://github.com/tomato42/tlsfuzzer/issues/371)»
 
 To avoid this error condition, multi-server deployments SHOULD ensure a uniform
 and stable deployment of TLS 1.3 without 0-RTT prior to enabling 0-RTT.
@@ -6326,6 +6327,7 @@ by making the TLS 1.3 handshake look more like a TLS 1.2 handshake:
 
 - The client always provides a non-empty session ID in the ClientHello,
   as described in the legacy_session_id section of {{client-hello}}.
+  «[tomato42/tlsfuzzer#240](https://github.com/tomato42/tlsfuzzer/issues/240)»
 
 - If not offering early data, the client sends a dummy
   change_cipher_spec record (see the third paragraph of {{record-layer}})
@@ -6333,6 +6335,7 @@ by making the TLS 1.3 handshake look more like a TLS 1.2 handshake:
   may either be before its second ClientHello or before its encrypted
   handshake flight. If offering early data, the record is placed
   immediately after the first ClientHello.
+  «[tomato42/tlsfuzzer#207](https://github.com/tomato42/tlsfuzzer/issues/207)»
 
 - The server sends a dummy change_cipher_spec record immediately
   after its first handshake message. This may either be after a
@@ -6346,6 +6349,7 @@ and the server has to echo it. Either side can send change_cipher_spec
 at any time during the handshake, as they must be ignored by the peer,
 but if the client sends a non-empty session ID, the server MUST send
 the change_cipher_spec as described in this section.
+«[tomato42/tlsfuzzer#240](https://github.com/tomato42/tlsfuzzer/issues/240)»
 
 
 ## Backwards Compatibility Security Restrictions
@@ -6369,17 +6373,21 @@ in {{RFC6176}}, and it MUST NOT be negotiated for any reason.
 
 Implementations MUST NOT send an SSL version 2.0 compatible CLIENT-HELLO.
 Implementations MUST NOT negotiate TLS 1.3 or later using an SSL version 2.0 compatible
-CLIENT-HELLO. Implementations are NOT RECOMMENDED to accept an SSL version 2.0 compatible
+CLIENT-HELLO
+«[tomato42/tlsfuzzer#203](https://github.com/tomato42/tlsfuzzer/issues/203)».
+Implementations are NOT RECOMMENDED to accept an SSL version 2.0 compatible
 CLIENT-HELLO in order to negotiate older versions of TLS.
 
 Implementations MUST NOT send a ClientHello.legacy_version or ServerHello.legacy_version
 set to 0x0300 or less. Any endpoint receiving a Hello message with
 ClientHello.legacy_version or ServerHello.legacy_version set to 0x0300 MUST
 abort the handshake with a "protocol_version" alert.
+«[tomato42/tlsfuzzer#372](https://github.com/tomato42/tlsfuzzer/issues/372)»
 
 Implementations MUST NOT send any records with a version less than 0x0300.
 Implementations SHOULD NOT accept any records with a version less than 0x0300
 (but may inadvertently do so if the record version number is ignored completely).
+«[tomato42/tlsfuzzer#348](https://github.com/tomato42/tlsfuzzer/issues/348)»
 
 Implementations MUST NOT use the Truncated HMAC extension, defined in
 Section 7 of [RFC6066], as it is not applicable to AEAD algorithms and has
