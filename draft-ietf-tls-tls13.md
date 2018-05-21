@@ -4051,7 +4051,10 @@ receiving the peer's Finished:
 2. Servers MAY send data after sending their first flight, but
    because the handshake is not yet complete, they have no assurance
    of either the peer's identity or of its liveness (i.e.,
-   the ClientHello might have been replayed).
+   the ClientHello might have been replayed)
+   «[tomato42/tlsfuzzer#388](https://github.com/tomato42/tlsfuzzer/issues/388),
+   [tomato42/tlsfuzzer#389](https://github.com/tomato42/tlsfuzzer/issues/389),
+   [tomato42/tlsfuzzer#390](https://github.com/tomato42/tlsfuzzer/issues/390)».
 
 The key used to compute the Finished message is computed from the
 Base key defined in {{authentication-messages}} using HKDF (see
