@@ -2000,7 +2000,8 @@ legacy_session_id
   (also known as ossification).
   Otherwise, it MUST be set as a zero length vector (i.e., a single
   zero byte length field).
-  «[tomato42/tlsfuzzer#240](https://github.com/tomato42/tlsfuzzer/issues/240)»
+  «[tomato42/tlsfuzzer#240](https://github.com/tomato42/tlsfuzzer/issues/240),
+  [tomato42/tlsfuzzer#397](https://github.com/tomato42/tlsfuzzer/issues/397)»
 
 cipher_suites
 : «[tomato42/tlsfuzzer#57](https://github.com/tomato42/tlsfuzzer/issues/57)»
