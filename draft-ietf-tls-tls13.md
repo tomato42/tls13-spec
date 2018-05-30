@@ -1914,7 +1914,10 @@ When a client first connects to a server, it is REQUIRED to send the
 ClientHello as its first TLS message. The client will also send a
 ClientHello when the server has responded to its ClientHello with a
 HelloRetryRequest. In that case, the client MUST send the same
-ClientHello without modification, except:
+ClientHello without modification
+«[tomato42/tlsfuzzer#398](https://github.com/tomato42/tlsfuzzer/issues/398),
+[tomato42/tlsfuzzer#399](https://github.com/tomato42/tlsfuzzer/issues/399)»,
+except:
 
 - If a "key_share" extension was supplied in the HelloRetryRequest,
   replacing the list of shares with a list containing a single
