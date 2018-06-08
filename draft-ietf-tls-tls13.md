@@ -4106,7 +4106,8 @@ and are not included in the hash computations.
 Any records following a Finished message MUST be encrypted under the
 appropriate application traffic key as described in {{updating-traffic-keys}}.
 In particular, this includes any alerts sent by the
-server in response to client Certificate and CertificateVerify messages.
+server in response to client Certificate and CertificateVerify messages
+«[tomato42/tlsfuzzer#405](https://github.com/tomato42/tlsfuzzer/issues/405)».
 
 
 ## End of Early Data
