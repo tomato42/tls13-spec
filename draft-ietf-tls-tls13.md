@@ -1937,7 +1937,8 @@ except:
   and (optionally) removing
   any PSKs which are incompatible with the server's indicated
   cipher suite.
-  «[tomato42/tlsfuzzer#237](https://github.com/tomato42/tlsfuzzer/issues/237)»
+  «[tomato42/tlsfuzzer#237](https://github.com/tomato42/tlsfuzzer/issues/237),
+  [tomato42/tlsfuzzer#447](https://github.com/tomato42/tlsfuzzer/issues/447)»
 
 - Optionally adding, removing, or changing the length of the "padding"
   extension {{RFC7685}}.
