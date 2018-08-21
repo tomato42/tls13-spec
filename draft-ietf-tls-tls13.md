@@ -2189,6 +2189,7 @@ present in TLS 1.2 and below, includes a signature over both random
 values, it is not possible for an active attacker to modify the
 random values without detection as long as ephemeral ciphers are used.
 It does not provide downgrade protection when static RSA is used.
+«[tomato42/tlsfuzzer#245](https://github.com/tomato42/tlsfuzzer/issues/245)»
 
 Note: This is a change from {{RFC5246}}, so in practice many TLS 1.2 clients
 and servers will not behave as specified above.
@@ -2198,7 +2199,7 @@ and which receives a TLS 1.3 ServerHello during renegotiation
 MUST abort the handshake with a "protocol_version" alert.
 Note that renegotiation is not possible when TLS 1.3 has been
 negotiated.
-«[tomato42/tlsfuzzer#245](https://github.com/tomato42/tlsfuzzer/issues/245)»
+«[tomato42/tlsfuzzer#239](https://github.com/tomato42/tlsfuzzer/issues/239)»
 
 RFC EDITOR: PLEASE REMOVE THE FOLLOWING PARAGRAPH
 Implementations of draft versions (see {{draft-version-indicator}}) of this
