@@ -5974,7 +5974,8 @@ might receive them from older TLS implementations.
 %%#### Supported Groups Extension
 
 Values within "obsolete_RESERVED" ranges are used in previous versions
-of TLS and MUST NOT be offered or negotiated by TLS 1.3 implementations.
+of TLS and MUST NOT be offered or negotiated by TLS 1.3 implementations
+«[tomato42/tlsfuzzer#539](https://github.com/tomato42/tlsfuzzer/issues/539)».
 The obsolete curves have various known/theoretical weaknesses or have
 had very little usage, in some cases only due to unintentional
 server configuration issues. They are no longer considered appropriate
