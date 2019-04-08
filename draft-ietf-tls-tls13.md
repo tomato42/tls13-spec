@@ -4293,7 +4293,8 @@ a Certificate message containing no certificates followed by Finished
 «[tomato42/tlsfuzzer#321](https://github.com/tomato42/tlsfuzzer/issues/321)».
 All of the client's messages for a given response
 MUST appear consecutively on the wire with no intervening messages of other types
-«[tomato42/tlsfuzzer#343](https://github.com/tomato42/tlsfuzzer/issues/343)».
+«[tomato42/tlsfuzzer#343](https://github.com/tomato42/tlsfuzzer/issues/343),
+[tomato42/tlsfuzzer#547](https://github.com/tomato42/tlsfuzzer/issues/547)».
 
 A client that receives a CertificateRequest message without having sent
 the "post_handshake_auth" extension MUST send an "unexpected_message" fatal
@@ -4302,7 +4303,9 @@ alert.
 Note: Because client authentication could involve prompting the user, servers
 MUST be prepared for some delay, including receiving an arbitrary number of
 other messages between sending the CertificateRequest and receiving a
-response. In addition, clients which receive multiple CertificateRequests in
+response
+«[tomato42/tlsfuzzer#547](https://github.com/tomato42/tlsfuzzer/issues/547)».
+In addition, clients which receive multiple CertificateRequests in
 close succession MAY respond to them in a different order than they were
 received (the certificate_request_context value allows the server to
 disambiguate the responses)
