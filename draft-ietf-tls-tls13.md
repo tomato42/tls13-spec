@@ -4292,7 +4292,8 @@ send Certificate, CertificateVerify, and Finished. If it declines, it MUST send
 a Certificate message containing no certificates followed by Finished
 «[tomato42/tlsfuzzer#321](https://github.com/tomato42/tlsfuzzer/issues/321)».
 All of the client's messages for a given response
-MUST appear consecutively on the wire with no intervening messages of other types.
+MUST appear consecutively on the wire with no intervening messages of other types
+«[tomato42/tlsfuzzer#343](https://github.com/tomato42/tlsfuzzer/issues/343)».
 
 A client that receives a CertificateRequest message without having sent
 the "post_handshake_auth" extension MUST send an "unexpected_message" fatal
