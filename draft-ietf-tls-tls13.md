@@ -3608,12 +3608,14 @@ Certificate
 
 CertificateVerify
 : A signature over the value Transcript-Hash(Handshake Context, Certificate)
-  «[tomato42/tlsfuzzer#299](https://github.com/tomato42/tlsfuzzer/issues/299)»
+  «[tomato42/tlsfuzzer#299](https://github.com/tomato42/tlsfuzzer/issues/299),
+  [tomato42/tlfuzzer#550](https://github.com/tomato42/tlsfuzzer/issues/550)»
 
 Finished
 : A MAC over the value Transcript-Hash(Handshake Context, Certificate, CertificateVerify)
   using a MAC key derived from the base key.
-  «[tomato42/tlsfuzzer#298](https://github.com/tomato42/tlsfuzzer/issues/298)»
+  «[tomato42/tlsfuzzer#298](https://github.com/tomato42/tlsfuzzer/issues/298),
+  [tomato42/tlsfuzzer#550](https://github.com/tomato42/tlsfuzzer/issues/550)»
 {:br}
 
 
